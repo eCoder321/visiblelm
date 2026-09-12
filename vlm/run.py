@@ -26,7 +26,7 @@ def run_seed(job, seed, out, log):
     S, ann = get_data(job.get('data', {}))
     cfg = dict(job['cfg']); cfg.setdefault('T_max', 32)
     t0 = time.time()
-    p, masks, hist = train(cfg, S['train'], seed=seed, evals={'iid': S['iid']}, log=log)
+    p, masks, hist, cfg = train(cfg, S['train'], seed=seed, evals={'iid': S['iid']}, log=log)
     r = {'name': job['name'], 'seed': seed, 'cfg': cfg, 'history': hist, 'train_seconds': time.time() - t0}
     r['eval'] = {k: evaluate(p, masks, cfg, S[k], ann=ann[k]) for k in ['iid', 'shift', 'long']}
     log(f"  eval: " + json.dumps({k: {kk: round(vv, 4) for kk, vv in v.items()} for k, v in r['eval'].items()}))

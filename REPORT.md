@@ -44,13 +44,32 @@ State = sparse named features + signed vote register; sparse lookup routing; fan
 * **Propositional rules cannot generalize across values.** "IF mode=succ AND cur=7 THEN next=8" is a table entry.
   Held-out argument accuracy: repeat 77–88%, copy2 69–78%, arithmetic 0%.
 
-### 3.3 Structured rule network (rulenet_g) — in progress
+### 3.3 Structured rule network (rulenet_g) — first pilot (`rng_v1`, 1 seed)
 
 Features are grouped into slots holding one value; routing and rule maps are expressed at the slot level ("copy their
 tok_content into my val0", one parameter for all 16 values). Arithmetic is an explicit per-rule value table
-initialised to the identity. Routing tables shrink from ~10⁴ to ~10² entries per head. Results: pending.
+initialised to the identity. Routing tables shrink from ~10⁴ to ~10² entries per head.
+
+| metric | null model | rulenet_g | reading |
+|---|---|---|---|
+| iid NLL (floor 0.62) | 0.59 | 0.66 | 0.07 nats tax, fully pruned (4+4+6 routing entries per head, fan-in 3) |
+| held-out switch pairs (floor 0.00) | 0.14 | 1.37 | worse; to investigate |
+| held-out argument: copy2 / copy3 / repeat | 80 / 50 / 62% | 92 / 86 / 100% | the slot copy transfers to unseen values |
+| held-out argument: arithmetic | 0% | 0–26% | as expected for a value table |
+| completeness gap | 0.002 | 0.000 | by construction |
+| magnitude audit | +3.2 | +2.3 | magnitudes still carry information |
+| circuit sufficiency vs random | 0.58 / 0.00 | 0.55 / 0.00 | similar |
+| clean features per state | 18 / 7 / 2 | 41 / 40 / 57 / 47 / 47 | far more nameable, at every depth |
+| circuit nodes that are clean | 30% | 50% | |
+| description length | — | 3,326 nonzero parameters | |
+| **north star**: discrete rulebook agrees with model | — | 49.5% | binarization alone: 30%; hard attention alone: 91% |
+
+Diagnosis: attention is already nearly discrete, but the rules use continuous activation *magnitudes*, so reading
+features as on/off loses half the predictions. Fix under test: clamp activations to [0,1] and, for the last quarter of
+training, run the forward pass as the discrete program (binary features, hard attention) with straight-through
+gradients, so the trained weights are the discrete program.
 
 ## 4. Changelog
 
 * 2026-09-12 — testbed, harness, four model families, null-model baseline, propositional rulenet diagnostics,
-  structured rulenet built. First structured run started.
+  structured rulenet built and run once; north-star diagnosis; snap phase implemented; 3-seed controls queued.

@@ -25,6 +25,16 @@ def make_loss(cfg):
         return nll + reg, nll
     return loss
 
+def _make_step(cfg, opt, loss):
+    @jax.jit
+    def step(p, masks, os, x):
+        (l, nll), g = jax.value_and_grad(loss, has_aux=True)(p, masks, x)
+        upd, os = opt.update(g, os, p); p = optax.apply_updates(p, upd)
+        if cfg['model'] == 'bottleneck' and not cfg.get('identity_dict', False):
+            p['dict'] = p['dict'] / jnp.linalg.norm(p['dict'], axis=1, keepdims=True)
+        return p, os, nll
+    return step
+
 def train(cfg, Xtr, seed=0, evals=None, log=print):
     """cfg keys: model, steps, lr, bs, plus model-specific. rulenet: prune_at (list of step fractions), the last
     reaching the target. Returns params, masks, history."""
@@ -34,15 +44,10 @@ def train(cfg, Xtr, seed=0, evals=None, log=print):
     sched = optax.warmup_cosine_decay_schedule(0.0, lr, min(100, steps // 10), steps, lr * 0.05)
     opt = optax.chain(optax.clip_by_global_norm(1.0), optax.adamw(sched, weight_decay=cfg.get('wd', 0.01)))
     loss = make_loss(cfg)
-    @jax.jit
-    def step(p, masks, os, x):
-        (l, nll), g = jax.value_and_grad(loss, has_aux=True)(p, masks, x)
-        upd, os = opt.update(g, os, p); p = optax.apply_updates(p, upd)
-        if cfg['model'] == 'bottleneck' and not cfg.get('identity_dict', False):
-            p['dict'] = p['dict'] / jnp.linalg.norm(p['dict'], axis=1, keepdims=True)
-        return p, os, nll
+    step = _make_step(cfg, opt, loss)
     os = opt.init(p)
     rng = np.random.default_rng(seed); hist = []; t0 = time.time()
+    ste_step = int(cfg['ste_from'] * steps) if cfg.get('ste_from') else None
     prune_at = sorted(cfg.get('prune_at', [])) if cfg['model'] in PRUNE else []
     prune_steps = [int(f * steps) for f in prune_at]
     regrow_every = cfg.get('regrow_every', 0); regrow_until = int(cfg.get('regrow_until', 0.8) * steps)
@@ -50,6 +55,12 @@ def train(cfg, Xtr, seed=0, evals=None, log=print):
     grad_fn = jax.jit(lambda p, x: jax.grad(lambda p_, x_: loss(p_, ones, x_)[0])(p, x))
     cur_frac = 0.0
     for i in range(steps):
+        if ste_step is not None and i == ste_step:
+            # snap phase: forward pass becomes the discrete program (binary features, hard attention), STE gradients
+            cfg = {**cfg, 'ste': True}; loss = make_loss(cfg)
+            step = _make_step(cfg, opt, loss)
+            grad_fn = jax.jit(lambda p, x: jax.grad(lambda p_, x_: loss(p_, ones, x_)[0])(p, x))
+            log(f"  step {i}: snapped to the discrete program (STE)")
         is_prune = i in prune_steps
         is_regrow = regrow_every and prune_steps and i > prune_steps[0] and i <= regrow_until and i % regrow_every == 0 and not is_prune
         if is_prune or is_regrow:
@@ -64,7 +75,7 @@ def train(cfg, Xtr, seed=0, evals=None, log=print):
             ev = {k: evaluate(p, masks, cfg, X)['nll'] for k, X in (evals or {}).items()}
             hist.append({'step': i, 'train_nll': float(nll), **ev})
             log(f"  step {i:5d} train {float(nll):.4f} " + ' '.join(f"{k} {v:.4f}" for k, v in ev.items()) + f"  ({time.time()-t0:.0f}s)")
-    return p, masks, hist
+    return p, masks, hist, cfg
 
 @partial(jax.jit, static_argnums=(2, 4))
 def _logits(p, masks, cfg_t, x, opts_t):

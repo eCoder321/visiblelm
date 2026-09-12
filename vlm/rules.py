@@ -73,13 +73,14 @@ def execute_hard_g(bundle, X, binarize=True, hard_attn=True, keep_topk=True):
     p, m, cfg = bundle['params'], bundle['masks'], bundle['cfg']; L_ = layout(cfg)
     F, G, Cm, k, Tm = L_['F'], L_['G'], L_['Cmax'], cfg['k'], cfg['T_max']
     Mv = np.asarray(L_['Mv']); same = np.asarray(L_['same']); to_bool = np.asarray(L_['to_bool'])
-    B, T = X.shape; clampv = cfg.get('clamp', 0.0)
+    B, T = X.shape; clampv = cfg.get('clamp', 0.0); ste = cfg.get('ste', False); thr0 = cfg.get('ste_thr', 0.5) if ste else 0.0
+    if ste: binarize = True; hard_attn = True                                  # a snapped model IS the discrete program
     def act(z):
         z = np.maximum(z, 0.0); return np.minimum(z, clampv) if clampv > 0 else z
     def topk(z):
         if not keep_topk: return z
         thr = np.sort(z, -1)[..., -k][..., None]; return np.where((z >= thr) & (z > 0), z, 0.0)
-    def binz(z): return (z > 0).astype(np.float64) if binarize else z
+    def binz(z): return (z > thr0).astype(np.float64) if binarize else z
     def grouped(code): cg = np.einsum('btf,fgv->btgv', code, Mv[:code.shape[-1]]); return cg, cg.sum(-1)
     def ungroup(dg, n): return np.einsum('btgv,fgv->btf', dg, Mv[:n])
     code = binz(np.maximum(np.asarray(p['emb'] * m['emb']), 0)[X]); out = np.zeros((B, T, VOCAB))
@@ -103,7 +104,7 @@ def execute_hard_g(bundle, X, binarize=True, hard_attn=True, keep_topk=True):
         cg, gs = grouped(code)
         W1 = np.asarray(lp['W1'] * lm['W1']); W2 = np.asarray(lp['W2'] * lm['W2']); b1 = np.asarray(lp['b1'])
         hid = act(code @ W1 + b1)
-        if binarize: hid = (hid > 0).astype(np.float64)
+        if binarize: hid = (hid > thr0).astype(np.float64)
         delta = hid @ W2
         Gs = np.asarray(lp['Gs'] * lm['Gs']); Gd = np.asarray(lp['Gd'] * lm['Gd']); Tt = np.asarray(lp['T'])
         src = np.einsum('btkv,rk->btrv', cg, Gs); mapped = np.einsum('btrv,rvw->btrw', src, Tt) * hid[..., None]

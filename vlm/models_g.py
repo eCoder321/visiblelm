@@ -20,7 +20,25 @@ Group layout (in feature order):
 """
 import jax, jax.numpy as jnp, numpy as np
 from testbed import VOCAB, M_MODES, C_TOK
-from models import topk_mask, _mask_apply, _act
+from models import topk_mask, _mask_apply
+
+def _act(z, cfg):
+    """relu, optional clamp to [0, clamp], and in the snap phase (cfg['ste']) a straight-through hard threshold:
+    forward value is 0/1, gradient flows as if the activation were the soft value."""
+    z = jax.nn.relu(z)
+    c = cfg.get('clamp', 0.0)
+    if c > 0: z = jnp.minimum(z, c)
+    if cfg.get('ste', False):
+        hard = (z > cfg.get('ste_thr', 0.5)).astype(z.dtype)
+        z = z + jax.lax.stop_gradient(hard - z)
+    return z
+
+def _attn(S, cfg):
+    a = jax.nn.softmax(S, -1)
+    if cfg.get('ste', False):
+        hard = jax.nn.one_hot(jnp.argmax(S, -1), S.shape[-1], dtype=a.dtype)
+        a = a + jax.lax.stop_gradient(hard - a)
+    return a
 
 def layout(cfg):
     """Returns dict with F, groups (list of (name, start, size, kind)), and index tensors."""
@@ -85,7 +103,7 @@ def route_g(code, lp, lm, cfg, L_, T):
     rel = jnp.take(lp['rel'], jnp.clip(dist, 0, lp['rel'].shape[1] - 1), axis=1)
     S = jnp.where((dist > 0)[None, None], S + rel[None], -1e9)
     S = jnp.concatenate([S, jnp.zeros(S.shape[:-1] + (1,))], -1)
-    a = jax.nn.softmax(S, -1)
+    a = _attn(S, cfg)
     cg_src = jnp.concatenate([cg, jnp.zeros(cg.shape[:1] + (1,) + cg.shape[2:])], 1)
     copied = jnp.einsum('bhts,bskv->bhtkv', a, cg_src)                        # (B,H,T,G,Cmax)
     # value-preserving copies between same-kind groups; summed copies into booleans
