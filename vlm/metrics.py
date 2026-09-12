@@ -269,5 +269,12 @@ def full_analysis(bundle, S, ann, n_faith=40, log=print):
                 text, dl = rulebook(bundle, labels)
             r['rulebook'] = text; r['description_length'] = dl
             log(f"  rulebook description length {dl}")
+            from rules import north_star_any
+            for split, X, A in [('iid', Xi, ai), ('shift', Xs, as_)]:
+                lg, _ = get_states(bundle, X)
+                r[f'north_star_{split}'] = north_star_any(bundle, X, A, lg)
+                r[f'north_star_soft_{split}'] = north_star_any(bundle, X, A, lg, binarize=False, hard_attn=False)
+                log(f"  north star {split} (discrete rulebook vs model vs oracle): " + json.dumps({k: round(v, 3) for k, v in r[f'north_star_{split}'].items()}))
+                log(f"  north star {split} (continuous re-execution, sanity): " + json.dumps({k: round(v, 3) for k, v in r[f'north_star_soft_{split}'].items()}))
         out[which] = r
     return out
