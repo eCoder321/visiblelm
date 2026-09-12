@@ -1,0 +1,109 @@
+{
+ "name": "v3_coderes_k8_d128",
+ "eval_nll": 0.20690169823169707,
+ "dead_frac_per_bottleneck": [
+  0.25,
+  0.1171875,
+  0.046875
+ ],
+ "mean_active_k": [
+  8.0,
+  7.99771875,
+  7.9900625
+ ],
+ "final_layer_feature_mode_selectivity": {
+  "chance": 0.25,
+  "mean_selectivity_live": 0.6032698138254102,
+  "frac_live_features_selective>0.9": 0.13675213675213677,
+  "n_live": 117
+ },
+ "ablation": {
+  "base": -0.00010604142880765721,
+  "ablate_top": -2.7905848026275635,
+  "ablate_random": -0.6979805827140808,
+  "keep_only_top": -0.002578477840870619
+ },
+ "completeness_top3_median": 0.8616162538528442,
+ "legibility_final": {
+  "n_live": 117,
+  "median_bestF1_live": 0.5408617854118347,
+  "frac_live_F1>0.8": 0.06837606837606838,
+  "frac_live_F1>0.5": 0.6068376068376068,
+  "examples": [
+   [
+    67,
+    "mode=3&cur=13",
+    0.99
+   ],
+   [
+    65,
+    "mode=1&cur=7",
+    0.93
+   ],
+   [
+    94,
+    "mode=1&cur=10",
+    0.92
+   ],
+   [
+    7,
+    "cur=7",
+    0.88
+   ],
+   [
+    27,
+    "mode=3&cur=5",
+    0.85
+   ],
+   [
+    40,
+    "cur=5",
+    0.82
+   ],
+   [
+    116,
+    "next=15",
+    0.81
+   ],
+   [
+    73,
+    "cur=14",
+    0.8
+   ],
+   [
+    79,
+    "next=14",
+    0.79
+   ],
+   [
+    48,
+    "mode=0&cur=4",
+    0.78
+   ],
+   [
+    57,
+    "mode=0&cur=13",
+    0.78
+   ],
+   [
+    76,
+    "next=12",
+    0.78
+   ]
+  ]
+ },
+ "layer_invariance": {
+  "frac_features_same_label_all_layers": 0.2743362831858407,
+  "n_multi_layer_live": 113,
+  "per_bottleneck_frac_F1>0.8": [
+   0.3854166666666667,
+   0.1504424778761062,
+   0.07377049180327869
+  ],
+  "per_bottleneck_median_F1": [
+   0.6884389519691467,
+   0.6114422082901001,
+   0.5463535785675049
+  ]
+ }
+}

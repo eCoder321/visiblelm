@@ -1,0 +1,49 @@
+name: train
+on:
+  workflow_dispatch:
+    inputs:
+      job:
+        description: 'Job JSON (see README). Leave empty to run all jobs/*.json without results.'
+        required: false
+        default: ''
+  push:
+    paths: ['jobs/**', 'bundle.py']
+permissions:
+  contents: write
+concurrency:
+  group: train
+  cancel-in-progress: false
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - run: pip install -q jax jaxlib optax numpy
+      - name: Unpack code
+        run: python bundle.py
+      - name: Run jobs
+        env:
+          JOB_INPUT: ${{ github.event.inputs.job }}
+        run: |
+          cd code
+          if [ -n "$JOB_INPUT" ]; then
+            echo "$JOB_INPUT" > /tmp/job.json
+            python -u run_job.py /tmp/job.json 2>&1 | grep -v Warning | tee ../results_log.txt
+          else
+            for j in ../jobs/*.json; do
+              n=$(python -c "import json,sys;print(json.load(open('$j'))['name'])")
+              if [ ! -f "../code/results/$n/summary.json" ] && [ ! -f "../results/$n/summary.json" ]; then
+                python -u run_job.py "$j" 2>&1 | grep -v Warning | tee -a ../results_log.txt
+              fi
+            done
+          fi
+          mkdir -p ../results && cp -r results/* ../results/ 2>/dev/null || true
+      - name: Commit results
+        run: |
+          git config user.name "train-bot"; git config user.email "bot@users.noreply.github.com"
+          git add results results_log.txt || true
+          git commit -m "results $(date -u +%Y%m%dT%H%M)" || echo "nothing to commit"
+          git pull --rebase && git push

@@ -1,0 +1,4 @@
+== text_v3_coderes_kw12
+  step     0 train_nll 4.1737 eval_nll 4.1736  (29s)
+  step   500 train_nll 2.4341 eval_nll 2.4384  (618s)
+  step  1000 train_nll 2.2476 eval_nll 2.2687  (1160s)

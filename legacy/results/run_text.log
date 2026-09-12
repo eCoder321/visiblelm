@@ -1,0 +1,19 @@
+vocab 65 train windows (60000, 64)
+== text_dense
+  step     0 train_nll 4.1897 eval_nll 4.1864  (8s)
+  step   500 train_nll 1.9808 eval_nll 2.0448  (98s)
+  step  1000 train_nll 1.7193 eval_nll 1.8657  (221s)
+  step  1500 train_nll 1.5829 eval_nll 1.7627  (378s)
+  step  2000 train_nll 1.5287 eval_nll 1.6875  (536s)
+  step  2500 train_nll 1.4174 eval_nll 1.6523  (694s)
+  step  2999 train_nll 1.4205 eval_nll 1.6329  (859s)
+text_dense final eval nll 1.6328792734146118 bits/char 2.3557468301256344
+== text_v2_k12_d384
+  step     0 train_nll 4.1718 eval_nll 4.1723  (40s)
+  step   500 train_nll 2.5487 eval_nll 2.5340  (449s)
+  step  1000 train_nll 2.3080 eval_nll 2.3399  (1068s)
+  step  1500 train_nll 2.1905 eval_nll 2.1991  (1449s)
+  step  2000 train_nll 2.1069 eval_nll 2.1382  (1825s)
+  step  2500 train_nll 1.9383 eval_nll 2.0406  (2199s)
+  step  2999 train_nll 1.9222 eval_nll 2.0241  (2573s)
+text_v2_k12_d384 final eval nll 2.0241019077301026 bits/char 2.920161784536109

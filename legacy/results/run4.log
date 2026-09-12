@@ -1,0 +1,80 @@
+== v3_coderes_k8_d128
+  step     0 train_nll 2.7723 eval_nll 2.7725  (17s)
+  step   750 train_nll 0.2247 eval_nll 0.2144  (188s)
+  step  1499 train_nll 0.2070 eval_nll 0.2069  (358s)
+{
+ "name": "v3_coderes_k8_d128",
+ "eval_nll": 0.20690169823169707,
+ "dead_frac_per_bottleneck": [
+  0.25,
+  0.1171875,
+  0.046875
+ ],
+ "ablation": {
+  "base": -0.00010604142880765721,
+  "ablate_top": -2.7905848026275635,
+  "ablate_random": -0.6979805827140808,
+  "keep_only_top": -0.002578477840870619
+ },
+ "completeness_top3_median": 0.8616162538528442,
+ "layer_invariance": {
+  "frac_features_same_label_all_layers": 0.2743362831858407,
+  "n_multi_layer_live": 113,
+  "per_bottleneck_frac_F1>0.8": [
+   0.3854166666666667,
+   0.1504424778761062,
+   0.07377049180327869
+  ],
+  "per_bottleneck_median_F1": [
+   0.6884389519691467,
+   0.6114422082901001,
+   0.5463535785675049
+  ]
+ },
+ "leg_final": {
+  "n_live": 117,
+  "median_bestF1_live": 0.5408617854118347,
+  "frac_live_F1>0.8": 0.06837606837606838,
+  "frac_live_F1>0.5": 0.6068376068376068
+ }
+}
+== v3_coderes_k8_d128_kw4
+  step     0 train_nll 2.7724 eval_nll 2.7726  (16s)
+  step   750 train_nll 0.2964 eval_nll 0.3398  (187s)
+  step  1499 train_nll 0.2575 eval_nll 0.2640  (365s)
+{
+ "name": "v3_coderes_k8_d128_kw4",
+ "eval_nll": 0.2640223107337952,
+ "dead_frac_per_bottleneck": [
+  0.0859375,
+  0.0234375,
+  0.0
+ ],
+ "ablation": {
+  "base": -0.017767835408449173,
+  "ablate_top": -3.708789348602295,
+  "ablate_random": -1.2918963432312012,
+  "keep_only_top": -0.11621402949094772
+ },
+ "completeness_top3_median": 0.9478215575218201,
+ "layer_invariance": {
+  "frac_features_same_label_all_layers": 0.56,
+  "n_multi_layer_live": 125,
+  "per_bottleneck_frac_F1>0.8": [
+   0.39316239316239315,
+   0.312,
+   0.28125
+  ],
+  "per_bottleneck_median_F1": [
+   0.6884389519691467,
+   0.6692209243774414,
+   0.6133008003234863
+  ]
+ },
+ "leg_final": {
+  "n_live": 124,
+  "median_bestF1_live": 0.6160714626312256,
+  "frac_live_F1>0.8": 0.27419354838709675,
+  "frac_live_F1>0.5": 0.6290322580645161
+ }
+}
