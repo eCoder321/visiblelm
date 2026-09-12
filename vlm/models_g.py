@@ -58,11 +58,12 @@ def init_rulenet_g(cfg, key):
               'P': jax.random.normal(kk[2], (H, G, G)) * 0.1, 'rel': jnp.zeros((H, Tm + 1)),
               'W1': jax.random.normal(kk[3], (F, R)) * 0.3, 'b1': jnp.zeros(R),
               'W2': jax.random.normal(kk[4], (R, F + VOCAB)) * 0.1,
-              'Gr': jax.random.normal(kk[5], (R, G, G)) * 0.1,
+              'Gs': jax.random.normal(kk[5], (R, G)) * 0.3,            # which group a rule's map reads
+              'Gd': jax.random.normal(jax.random.split(kk[5])[0], (R, G)) * 0.3,   # which group it writes
               'T': jnp.broadcast_to(jnp.eye(Cm), (R, Cm, Cm)).copy()}
         p['layers'].append(lp)
         m['layers'].append({'u': jnp.ones((H, G)), 'A': jnp.ones((H, G, G)), 'P': jnp.ones((H, G, G)),
-                            'W1': jnp.ones((F, R)), 'W2': jnp.ones((R, F + VOCAB)), 'Gr': jnp.ones((R, G, G))})
+                            'W1': jnp.ones((F, R)), 'W2': jnp.ones((R, F + VOCAB)), 'Gs': jnp.ones((R, G)), 'Gd': jnp.ones((R, G))})
     return p, m
 
 def _grouped(code, L_):
@@ -98,10 +99,14 @@ def compute_g(code, lp, lm, cfg, L_):
     hid = _act(code @ (lp['W1'] * lm['W1']) + lp['b1'], cfg)                   # (B,T,R)
     delta = hid @ (lp['W2'] * lm['W2'])
     cg, gs = _grouped(code, L_)
-    Gr = lp['Gr'] * lm['Gr']
-    mapped = jnp.einsum('btkv,rvw->btrkw', cg, lp['T'])                       # each rule's table applied to every group
-    d_same = jnp.einsum('btr,btrkw,rkg->btgw', hid, mapped, Gr * L_['same'])
-    d_bool = jnp.einsum('btr,btk,rkg->btg', hid, gs, Gr * L_['to_bool'])
+    Gs = lp['Gs'] * lm['Gs']; Gd = lp['Gd'] * lm['Gd']
+    src = jnp.einsum('btkv,rk->btrv', cg, Gs)                                 # each rule reads its source group
+    mapped = jnp.einsum('btrv,rvw->btrw', src, lp['T']) * hid[..., None]      # applies its table, gated by firing
+    # kind compatibility: a value map may only land on a group of the same kind as its source; booleans get the sum
+    kind_ok = jnp.einsum('rk,kg->rg', Gs != 0, L_['same']) > 0
+    d_same = jnp.einsum('btrw,rg->btgw', mapped, jnp.where(kind_ok, Gd, 0.0))
+    bool_ok = jnp.einsum('rk,kg->rg', Gs != 0, L_['to_bool']) > 0
+    d_bool = jnp.einsum('btr,rg->btg', mapped.sum(-1), jnp.where(bool_ok, Gd, 0.0))
     dg = d_same.at[..., 0].add(d_bool)
     return delta + _ungroup(dg, L_, F + VOCAB), hid
 
@@ -128,7 +133,7 @@ def reg_rulenet_g(p, masks, cfg):
     """L1 on all structural weights, and on each rule table's deviation from the identity."""
     reg = jnp.abs(p['emb'] * masks['emb']).sum()
     for lp, lm in zip(p['layers'], masks['layers']):
-        reg = reg + sum(jnp.abs(lp[n] * lm[n]).sum() for n in ['u', 'A', 'P', 'W1', 'W2', 'Gr'])
+        reg = reg + sum(jnp.abs(lp[n] * lm[n]).sum() for n in ['u', 'A', 'P', 'W1', 'W2', 'Gs', 'Gd'])
         reg = reg + cfg.get('l1_table', 1.0) * jnp.abs(lp['T'] - jnp.eye(lp['T'].shape[-1])).sum()
     return reg
 
@@ -137,11 +142,11 @@ from models import _select
 def prune_rulenet_g(p, masks, cfg, frac, grads=None, regrow_frac=0.0):
     L_ = layout(cfg); F, G = L_['F'], L_['G']
     tg = {'u': (G, cfg['n_u']), 'A': (G * G, cfg['n_a']), 'P': (G * G, cfg['n_p']),
-          'W1': (F, cfg['fan_in']), 'W2': (F + VOCAB, cfg['fan_out']), 'Gr': (G * G, cfg.get('n_gr', 1)), 'emb': (F, cfg.get('emb_fan', 3))}
+          'W1': (F, cfg['fan_in']), 'W2': (F + VOCAB, cfg['fan_out']), 'Gs': (G, 1), 'Gd': (G, 1), 'emb': (F, cfg.get('emb_fan', 3))}
     views = {'W1': (lambda w: w.T, lambda w2, s: w2.T), 'W2': (lambda w: w, lambda w2, s: w2), 'u': (lambda w: w, lambda w2, s: w2),
              'A': (lambda w: w.reshape(w.shape[0], -1), lambda w2, s: w2.reshape(s)),
              'P': (lambda w: w.reshape(w.shape[0], -1), lambda w2, s: w2.reshape(s)),
-             'Gr': (lambda w: w.reshape(w.shape[0], -1), lambda w2, s: w2.reshape(s)), 'emb': (lambda w: w, lambda w2, s: w2)}
+             'Gs': (lambda w: w, lambda w2, s: w2), 'Gd': (lambda w: w, lambda w2, s: w2), 'emb': (lambda w: w, lambda w2, s: w2)}
     def keep_n(dn, tn): return int(round(np.exp(np.log(dn) + frac * (np.log(tn) - np.log(dn)))))
     def do(name, w, m, g):
         to2, from2 = views[name]; dn, tn = tg[name]; n = keep_n(dn, tn)
@@ -151,7 +156,7 @@ def prune_rulenet_g(p, masks, cfg, frac, grads=None, regrow_frac=0.0):
     new['emb'], p['emb'] = do('emb', p['emb'], masks['emb'], None if grads is None else grads['emb'])
     for l, (lp, lm) in enumerate(zip(p['layers'], masks['layers'])):
         lp = dict(lp); nm = {}
-        for name in ['u', 'A', 'P', 'W1', 'W2', 'Gr']:
+        for name in ['u', 'A', 'P', 'W1', 'W2', 'Gs', 'Gd']:
             nm[name], lp[name] = do(name, lp[name], lm[name], None if grads is None else grads['layers'][l][name])
         new['layers'].append(nm); p['layers'][l] = lp
     return new, p
@@ -189,11 +194,12 @@ def rulebook_g(bundle, labels=None, top_rel=3):
             lines.append(f"  head {h}: prefer distance {[(int(d + 1), round(float(rel[d]), 2)) for d in top]}")
             lines.append(f"    LOOK FOR: {us}"); lines.append(f"    MATCH: {As}"); lines.append(f"    COPY: {Ps}")
         lines.append(f"=== layer {l} : RULES")
-        W1 = np.asarray(lp['W1'] * lm['W1']); W2 = np.asarray(lp['W2'] * lm['W2']); Gr = np.asarray(lp['Gr'] * lm['Gr'] * (L_['same'] + L_['to_bool'])[None])
+        W1 = np.asarray(lp['W1'] * lm['W1']); W2 = np.asarray(lp['W2'] * lm['W2'])
+        Gs = np.asarray(lp['Gs'] * lm['Gs']); Gd = np.asarray(lp['Gd'] * lm['Gd']); ok = np.asarray(L_['same'] + L_['to_bool'])
         for r in range(cfg['R']):
             ins = [(f, W1[f, r]) for f in np.where(W1[:, r] != 0)[0]]
             outs = [(g, W2[r, g]) for g in np.where(W2[r] != 0)[0]]
-            maps = [(a, b, Gr[r, a, b]) for a, b in zip(*np.where(Gr[r] != 0))]
+            maps = [(a, b, Gs[r, a] * Gd[r, b]) for a in np.where(Gs[r] != 0)[0] for b in np.where(Gd[r] != 0)[0] if ok[a, b] > 0]
             if not ins or (not outs and not maps): continue
             dl += len(ins) + len(outs) + 1
             cond = ' + '.join(f"{w:+.2f}*{lab(f)}" for f, w in ins)

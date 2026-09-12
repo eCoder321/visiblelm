@@ -266,16 +266,17 @@ def _targets(cfg):
             'u': (F, cfg['n_u']), 'P': (F * (F + VOCAB), cfg['n_p']), 'emb': (F, cfg.get('emb_fan', 3))}
 
 def _select(w, m, g, n_keep, n_grow):
-    """w, m, g: (slices, entries). Keep the n_keep - n_grow largest |w| among currently unmasked entries, then grow
-    the n_grow largest |g| among the remaining entries (weights reset to 0). Returns (mask, w)."""
+    """w, m, g: (slices, entries). Keep exactly the n_keep - n_grow largest |w| among currently unmasked entries,
+    then grow the n_grow largest |g| among the remaining entries (weights reset to 0). Returns (mask, w)."""
     n_keep = max(int(n_keep), 1); n_grow = min(max(1, int(round(n_grow))), n_keep - 1) if (g is not None and n_grow > 0) else 0
+    E = w.shape[1]; n_keep = min(n_keep, E)
     score = jnp.abs(w) * m + (m - 1) * 1e9
-    kth = jnp.sort(score, axis=1)[:, max(score.shape[1] - (n_keep - n_grow), 0)][:, None]
-    keep = (score >= kth) & (m > 0)
+    idx = jax.lax.top_k(score, n_keep - n_grow)[1]
+    keep = jnp.zeros_like(w, dtype=bool).at[jnp.arange(w.shape[0])[:, None], idx].set(True) & (m > 0)
     if n_grow > 0:
         gs = jnp.where(keep, -1e9, jnp.abs(g))
-        gth = jnp.sort(gs, axis=1)[:, max(gs.shape[1] - n_grow, 0)][:, None]
-        grow = (gs >= gth) & ~keep & (gs > -1e9)
+        gidx = jax.lax.top_k(gs, n_grow)[1]
+        grow = jnp.zeros_like(w, dtype=bool).at[jnp.arange(w.shape[0])[:, None], gidx].set(True) & ~keep
         w = jnp.where(grow, 0.0, w)
         keep = keep | grow
     return keep.astype(w.dtype), w

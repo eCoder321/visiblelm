@@ -1,0 +1,685 @@
+{
+ "job": {
+  "name": "dense_L2",
+  "data": {
+   "n_train": 20000,
+   "n_test": 1000
+  },
+  "seeds": [
+   0
+  ],
+  "sae": {
+   "F": 96,
+   "k": 12
+  },
+  "cfg": {
+   "model": "dense",
+   "d": 64,
+   "layers": 2,
+   "heads": 2,
+   "ff": 128,
+   "steps": 3000,
+   "lr": 0.003,
+   "bs": 64,
+   "log_every": 500
+  }
+ },
+ "n_seeds": 1,
+ "summary": {
+  "analysis": {
+   "sae": {
+    "magnitude_audit": {
+     "nll": {
+      "mean": 0.5933050513267517,
+      "std": 0.0,
+      "n": 1
+     },
+     "nll_binarized": {
+      "mean": 3.824923515319824,
+      "std": 0.0,
+      "n": 1
+     },
+     "gap": {
+      "mean": 3.2316184639930725,
+      "std": 0.0,
+      "n": 1
+     }
+    },
+    "completeness_gap": {
+     "mean": 0.0017755627632141113,
+     "std": 0.0,
+     "n": 1
+    },
+    "faithfulness_shift": {
+     "sufficiency": {
+      "mean": -2.9940807044506075,
+      "std": 0.0,
+      "n": 1
+     },
+     "circuit_size_mean": {
+      "mean": 14.975,
+      "std": 0.0,
+      "n": 1
+     },
+     "necessity": {
+      "mean": -8.002104020118713,
+      "std": 0.0,
+      "n": 1
+     },
+     "n_nodes_mean": {
+      "mean": 454.5,
+      "std": 0.0,
+      "n": 1
+     },
+     "all_ablated": {
+      "mean": -5.524926036596298,
+      "std": 0.0,
+      "n": 1
+     },
+     "circuit_size_median": {
+      "mean": 7.0,
+      "std": 0.0,
+      "n": 1
+     },
+     "circuit_clean_frac": {
+      "mean": 0.1419031719532554,
+      "std": 0.0,
+      "n": 1
+     },
+     "tau": {
+      "mean": 0.1,
+      "std": 0.0,
+      "n": 1
+     },
+     "n_examples": {
+      "mean": 40.0,
+      "std": 0.0,
+      "n": 1
+     },
+     "sufficiency_retained_frac": {
+      "mean": 0.5683618482181718,
+      "std": 0.0,
+      "n": 1
+     },
+     "random_retained_frac": {
+      "mean": -0.025620123230100697,
+      "std": 0.0,
+      "n": 1
+     },
+     "sufficiency_argmax_ok": {
+      "mean": 0.35,
+      "std": 0.0,
+      "n": 1
+     },
+     "base": {
+      "mean": -1.0720491588115693,
+      "std": 0.0,
+      "n": 1
+     },
+     "random_same_size": {
+      "mean": -5.639009290933609,
+      "std": 0.0,
+      "n": 1
+     }
+    },
+    "faithfulness_iid": {
+     "sufficiency": {
+      "mean": -2.2720738112926484,
+      "std": 0.0,
+      "n": 1
+     },
+     "circuit_size_mean": {
+      "mean": 5.725,
+      "std": 0.0,
+      "n": 1
+     },
+     "necessity": {
+      "mean": -7.685376280546189,
+      "std": 0.0,
+      "n": 1
+     },
+     "n_nodes_mean": {
+      "mean": 452.7,
+      "std": 0.0,
+      "n": 1
+     },
+     "all_ablated": {
+      "mean": -4.997463524341583,
+      "std": 0.0,
+      "n": 1
+     },
+     "circuit_size_median": {
+      "mean": 4.0,
+      "std": 0.0,
+      "n": 1
+     },
+     "circuit_clean_frac": {
+      "mean": 0.29694323144104806,
+      "std": 0.0,
+      "n": 1
+     },
+     "tau": {
+      "mean": 0.1,
+      "std": 0.0,
+      "n": 1
+     },
+     "n_examples": {
+      "mean": 40.0,
+      "std": 0.0,
+      "n": 1
+     },
+     "sufficiency_retained_frac": {
+      "mean": 0.5782756615464971,
+      "std": 0.0,
+      "n": 1
+     },
+     "random_retained_frac": {
+      "mean": -0.006328749995551429,
+      "std": 0.0,
+      "n": 1
+     },
+     "sufficiency_argmax_ok": {
+      "mean": 0.325,
+      "std": 0.0,
+      "n": 1
+     },
+     "base": {
+      "mean": -0.2845041275024414,
+      "std": 0.0,
+      "n": 1
+     },
+     "random_same_size": {
+      "mean": -5.027290666103363,
+      "std": 0.0,
+      "n": 1
+     }
+    },
+    "legibility": {
+     "state1": {
+      "median_heldF1_live": {
+       "mean": 0.47177672386169434,
+       "std": 0.0,
+       "n": 1
+      },
+      "n_half_clean": {
+       "mean": 41.0,
+       "std": 0.0,
+       "n": 1
+      },
+      "n_clean": {
+       "mean": 7.0,
+       "std": 0.0,
+       "n": 1
+      },
+      "clean_mass_frac": {
+       "mean": 0.03181904926896095,
+       "std": 0.0,
+       "n": 1
+      },
+      "n_live": {
+       "mean": 96.0,
+       "std": 0.0,
+       "n": 1
+      },
+      "clean_event_frac": {
+       "mean": 0.04726086956521739,
+       "std": 0.0,
+       "n": 1
+      }
+     },
+     "state2": {
+      "median_heldF1_live": {
+       "mean": 0.4044945240020752,
+       "std": 0.0,
+       "n": 1
+      },
+      "n_half_clean": {
+       "mean": 30.0,
+       "std": 0.0,
+       "n": 1
+      },
+      "n_clean": {
+       "mean": 2.0,
+       "std": 0.0,
+       "n": 1
+      },
+      "clean_mass_frac": {
+       "mean": 0.0065979124046862125,
+       "std": 0.0,
+       "n": 1
+      },
+      "n_live": {
+       "mean": 96.0,
+       "std": 0.0,
+       "n": 1
+      },
+      "clean_event_frac": {
+       "mean": 0.012876811594202899,
+       "std": 0.0,
+       "n": 1
+      }
+     },
+     "state0": {
+      "median_heldF1_live": {
+       "mean": 0.5292129516601562,
+       "std": 0.0,
+       "n": 1
+      },
+      "n_half_clean": {
+       "mean": 40.0,
+       "std": 0.0,
+       "n": 1
+      },
+      "n_clean": {
+       "mean": 18.0,
+       "std": 0.0,
+       "n": 1
+      },
+      "clean_mass_frac": {
+       "mean": 0.24378371238708496,
+       "std": 0.0,
+       "n": 1
+      },
+      "n_live": {
+       "mean": 75.0,
+       "std": 0.0,
+       "n": 1
+      },
+      "clean_event_frac": {
+       "mean": 0.09532290209048891,
+       "std": 0.0,
+       "n": 1
+      }
+     }
+    }
+   }
+  },
+  "eval": {
+   "iid": {
+    "acc_rule": {
+     "mean": 0.99835,
+     "std": 0.0,
+     "n": 1
+    },
+    "nll": {
+     "mean": 0.5933050513267517,
+     "std": 0.0,
+     "n": 1
+    },
+    "oracle": {
+     "mean": 0.6166340136624466,
+     "std": 0.0,
+     "n": 1
+    }
+   },
+   "shift": {
+    "nll_heldout_sw": {
+     "mean": 0.14069294929504395,
+     "std": 0.0,
+     "n": 1
+    },
+    "oracle_heldout_arg": {
+     "mean": 0.3232919480534359,
+     "std": 0.0,
+     "n": 1
+    },
+    "nll_heldout_arg": {
+     "mean": 4.18369197845459,
+     "std": 0.0,
+     "n": 1
+    },
+    "acc_heldout_succ": {
+     "mean": 0.0,
+     "std": 0.0,
+     "n": 1
+    },
+    "acc_heldout_rept": {
+     "mean": 0.6226415094339622,
+     "std": 0.0,
+     "n": 1
+    },
+    "acc_heldout_cpy3": {
+     "mean": 0.5028735632183908,
+     "std": 0.0,
+     "n": 1
+    },
+    "acc_heldout_pred": {
+     "mean": 0.0,
+     "std": 0.0,
+     "n": 1
+    },
+    "acc_heldout": {
+     "mean": 0.3976210705182668,
+     "std": 0.0,
+     "n": 1
+    },
+    "acc_heldout_pls2": {
+     "mean": 0.0029850746268656717,
+     "std": 0.0,
+     "n": 1
+    },
+    "nll": {
+     "mean": 1.842653512954712,
+     "std": 0.0,
+     "n": 1
+    },
+    "oracle_heldout_sw": {
+     "mean": 0.0,
+     "std": 0.0,
+     "n": 1
+    },
+    "acc_rule": {
+     "mean": 0.757,
+     "std": 0.0,
+     "n": 1
+    },
+    "oracle_heldout": {
+     "mean": 0.29445112006226276,
+     "std": 0.0,
+     "n": 1
+    },
+    "nll_heldout": {
+     "mean": 3.8118412494659424,
+     "std": 0.0,
+     "n": 1
+    },
+    "oracle": {
+     "mean": 0.6531374998317959,
+     "std": 0.0,
+     "n": 1
+    },
+    "acc_heldout_cpy2": {
+     "mean": 0.7972222222222223,
+     "std": 0.0,
+     "n": 1
+    }
+   },
+   "long": {
+    "nll_heldout_sw": {
+     "mean": 1.0202689170837402,
+     "std": 0.0,
+     "n": 1
+    },
+    "oracle_heldout_arg": {
+     "mean": 0.30477798719103083,
+     "std": 0.0,
+     "n": 1
+    },
+    "nll_heldout_arg": {
+     "mean": 4.790205001831055,
+     "std": 0.0,
+     "n": 1
+    },
+    "acc_heldout_succ": {
+     "mean": 0.0036363636363636364,
+     "std": 0.0,
+     "n": 1
+    },
+    "acc_heldout_rept": {
+     "mean": 0.5354330708661418,
+     "std": 0.0,
+     "n": 1
+    },
+    "acc_heldout_cpy3": {
+     "mean": 0.5428571428571428,
+     "std": 0.0,
+     "n": 1
+    },
+    "acc_heldout_pred": {
+     "mean": 0.0,
+     "std": 0.0,
+     "n": 1
+    },
+    "acc_heldout": {
+     "mean": 0.3559504577275175,
+     "std": 0.0,
+     "n": 1
+    },
+    "acc_heldout_pls2": {
+     "mean": 0.003289473684210526,
+     "std": 0.0,
+     "n": 1
+    },
+    "nll": {
+     "mean": 1.5131880044937134,
+     "std": 0.0,
+     "n": 1
+    },
+    "oracle_heldout_sw": {
+     "mean": 0.0,
+     "std": 0.0,
+     "n": 1
+    },
+    "acc_rule": {
+     "mean": 0.8066785714285715,
+     "std": 0.0,
+     "n": 1
+    },
+    "oracle_heldout": {
+     "mean": 0.277697552141747,
+     "std": 0.0,
+     "n": 1
+    },
+    "nll_heldout": {
+     "mean": 4.439492702484131,
+     "std": 0.0,
+     "n": 1
+    },
+    "oracle": {
+     "mean": 0.5303263790370106,
+     "std": 0.0,
+     "n": 1
+    },
+    "acc_heldout_cpy2": {
+     "mean": 0.8818565400843882,
+     "std": 0.0,
+     "n": 1
+    }
+   }
+  },
+  "eval_sae": {
+   "0.0": {
+    "iid": {
+     "acc_rule": {
+      "mean": 0.99835,
+      "std": 0.0,
+      "n": 1
+     },
+     "nll": {
+      "mean": 0.5950806140899658,
+      "std": 0.0,
+      "n": 1
+     },
+     "oracle": {
+      "mean": 0.6166340136624466,
+      "std": 0.0,
+      "n": 1
+     }
+    },
+    "shift": {
+     "nll_heldout_sw": {
+      "mean": 0.2147844433784485,
+      "std": 0.0,
+      "n": 1
+     },
+     "oracle_heldout_arg": {
+      "mean": 0.3232919480534359,
+      "std": 0.0,
+      "n": 1
+     },
+     "nll_heldout_arg": {
+      "mean": 4.683665752410889,
+      "std": 0.0,
+      "n": 1
+     },
+     "acc_heldout_succ": {
+      "mean": 0.0,
+      "std": 0.0,
+      "n": 1
+     },
+     "acc_heldout_rept": {
+      "mean": 0.5919811320754716,
+      "std": 0.0,
+      "n": 1
+     },
+     "acc_heldout_cpy3": {
+      "mean": 0.4051724137931034,
+      "std": 0.0,
+      "n": 1
+     },
+     "acc_heldout_pred": {
+      "mean": 0.0,
+      "std": 0.0,
+      "n": 1
+     },
+     "acc_heldout": {
+      "mean": 0.3644859813084112,
+      "std": 0.0,
+      "n": 1
+     },
+     "acc_heldout_pls2": {
+      "mean": 0.0,
+      "std": 0.0,
+      "n": 1
+     },
+     "nll": {
+      "mean": 2.0303335189819336,
+      "std": 0.0,
+      "n": 1
+     },
+     "oracle_heldout_sw": {
+      "mean": 0.0,
+      "std": 0.0,
+      "n": 1
+     },
+     "acc_rule": {
+      "mean": 0.7443,
+      "std": 0.0,
+      "n": 1
+     },
+     "oracle_heldout": {
+      "mean": 0.29445112006226276,
+      "std": 0.0,
+      "n": 1
+     },
+     "nll_heldout": {
+      "mean": 4.269021987915039,
+      "std": 0.0,
+      "n": 1
+     },
+     "oracle": {
+      "mean": 0.6531374998317959,
+      "std": 0.0,
+      "n": 1
+     },
+     "acc_heldout_cpy2": {
+      "mean": 0.7138888888888889,
+      "std": 0.0,
+      "n": 1
+     }
+    }
+   },
+   "1.0": {
+    "iid": {
+     "acc_rule": {
+      "mean": 0.99835,
+      "std": 0.0,
+      "n": 1
+     },
+     "nll": {
+      "mean": 0.5933050513267517,
+      "std": 0.0,
+      "n": 1
+     },
+     "oracle": {
+      "mean": 0.6166340136624466,
+      "std": 0.0,
+      "n": 1
+     }
+    },
+    "shift": {
+     "nll_heldout_sw": {
+      "mean": 0.14069296419620514,
+      "std": 0.0,
+      "n": 1
+     },
+     "oracle_heldout_arg": {
+      "mean": 0.3232919480534359,
+      "std": 0.0,
+      "n": 1
+     },
+     "nll_heldout_arg": {
+      "mean": 4.18369197845459,
+      "std": 0.0,
+      "n": 1
+     },
+     "acc_heldout_succ": {
+      "mean": 0.0,
+      "std": 0.0,
+      "n": 1
+     },
+     "acc_heldout_rept": {
+      "mean": 0.6226415094339622,
+      "std": 0.0,
+      "n": 1
+     },
+     "acc_heldout_cpy3": {
+      "mean": 0.5028735632183908,
+      "std": 0.0,
+      "n": 1
+     },
+     "acc_heldout_pred": {
+      "mean": 0.0,
+      "std": 0.0,
+      "n": 1
+     },
+     "acc_heldout": {
+      "mean": 0.3976210705182668,
+      "std": 0.0,
+      "n": 1
+     },
+     "acc_heldout_pls2": {
+      "mean": 0.0029850746268656717,
+      "std": 0.0,
+      "n": 1
+     },
+     "nll": {
+      "mean": 1.842653512954712,
+      "std": 0.0,
+      "n": 1
+     },
+     "oracle_heldout_sw": {
+      "mean": 0.0,
+      "std": 0.0,
+      "n": 1
+     },
+     "acc_rule": {
+      "mean": 0.757,
+      "std": 0.0,
+      "n": 1
+     },
+     "oracle_heldout": {
+      "mean": 0.29445112006226276,
+      "std": 0.0,
+      "n": 1
+     },
+     "nll_heldout": {
+      "mean": 3.8118412494659424,
+      "std": 0.0,
+      "n": 1
+     },
+     "oracle": {
+      "mean": 0.6531374998317959,
+      "std": 0.0,
+      "n": 1
+     },
+     "acc_heldout_cpy2": {
+      "mean": 0.7972222222222223,
+      "std": 0.0,
+      "n": 1
+     }
+    }
+   }
+  }
+ }
+}
