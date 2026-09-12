@@ -22,7 +22,7 @@ import jax, jax.numpy as jnp, numpy as np
 from testbed import VOCAB, M_MODES, C_TOK
 from models import topk_mask, _mask_apply
 
-def _act(z, cfg):
+def _act(z, cfg, alpha=1.0):
     """relu, optional clamp to [0, clamp], and in the snap phase (cfg['ste']) a straight-through hard threshold:
     forward value is 0/1, gradient flows as if the activation were the soft value."""
     z = jax.nn.relu(z)
@@ -30,14 +30,14 @@ def _act(z, cfg):
     if c > 0: z = jnp.minimum(z, c)
     if cfg.get('ste', False):
         hard = (z > cfg.get('ste_thr', 0.5)).astype(z.dtype)
-        z = z + jax.lax.stop_gradient(hard - z)
+        z = z + alpha * jax.lax.stop_gradient(hard - z)
     return z
 
-def _attn(S, cfg):
+def _attn(S, cfg, alpha=1.0):
     a = jax.nn.softmax(S, -1)
     if cfg.get('ste', False):
         hard = jax.nn.one_hot(jnp.argmax(S, -1), S.shape[-1], dtype=a.dtype)
-        a = a + jax.lax.stop_gradient(hard - a)
+        a = a + alpha * jax.lax.stop_gradient(hard - a)
     return a
 
 def layout(cfg):
@@ -94,7 +94,7 @@ def _ungroup(dg, L_, n):
     """(B,T,G,Cmax) -> (B,T,n) features."""
     return jnp.einsum('btgv,fgv->btf', dg, L_['Mv'][:n])
 
-def route_g(code, lp, lm, cfg, L_, T):
+def route_g(code, lp, lm, cfg, L_, T, alpha=1.0):
     H = cfg['heads']; F = L_['F']
     cg, gs = _grouped(code, L_)
     u = lp['u'] * lm['u']; A = lp['A'] * lm['A'] * L_['same']; P = lp['P'] * lm['P']
@@ -103,7 +103,7 @@ def route_g(code, lp, lm, cfg, L_, T):
     rel = jnp.take(lp['rel'], jnp.clip(dist, 0, lp['rel'].shape[1] - 1), axis=1)
     S = jnp.where((dist > 0)[None, None], S + rel[None], -1e9)
     S = jnp.concatenate([S, jnp.zeros(S.shape[:-1] + (1,))], -1)
-    a = _attn(S, cfg)
+    a = _attn(S, cfg, alpha)
     cg_src = jnp.concatenate([cg, jnp.zeros(cg.shape[:1] + (1,) + cg.shape[2:])], 1)
     copied = jnp.einsum('bhts,bskv->bhtkv', a, cg_src)                        # (B,H,T,G,Cmax)
     # value-preserving copies between same-kind groups; summed copies into booleans
@@ -112,9 +112,9 @@ def route_g(code, lp, lm, cfg, L_, T):
     dg = d_same.at[..., 0].add(d_bool)                                        # booleans live at value index 0
     return _ungroup(dg, L_, F + VOCAB), a
 
-def compute_g(code, lp, lm, cfg, L_):
+def compute_g(code, lp, lm, cfg, L_, alpha=1.0):
     F = L_['F']
-    hid = _act(code @ (lp['W1'] * lm['W1']) + lp['b1'], cfg)                   # (B,T,R)
+    hid = _act(code @ (lp['W1'] * lm['W1']) + lp['b1'], cfg, alpha)                   # (B,T,R)
     delta = hid @ (lp['W2'] * lm['W2'])
     cg, gs = _grouped(code, L_)
     Gs = lp['Gs'] * lm['Gs']; Gd = lp['Gd'] * lm['Gd']
@@ -131,17 +131,18 @@ def compute_g(code, lp, lm, cfg, L_):
 def apply_rulenet_g(p, masks, cfg, x, feat_masks=None, opts=None):
     opts = opts or {}; L_ = layout(cfg)
     B, T = x.shape; F, k = L_['F'], cfg['k']
-    code = jax.nn.relu(p['emb'] * masks['emb'])[x]
+    alpha = masks.get('alpha', 1.0)                                           # STE mix (ramped during the snap phase)
+    code = _act((p['emb'] * masks['emb'])[x], cfg, alpha)                     # the embedding is a state too: same activation
     out = jnp.zeros((B, T, VOCAB))
     code = _mask_apply(code, None if feat_masks is None else feat_masks[0])
     states, attns, hids = [code], [], []
     i = 1
     for lp, lm in zip(p['layers'], masks['layers']):
-        delta, a = route_g(code, lp, lm, cfg, L_, T); attns.append(a)
-        code = topk_mask(_act(code + delta[..., :F], cfg), k); out = out + delta[..., F:]
+        delta, a = route_g(code, lp, lm, cfg, L_, T, alpha); attns.append(a)
+        code = topk_mask(_act(code + delta[..., :F], cfg, alpha), k); out = out + delta[..., F:]
         code = _mask_apply(code, None if feat_masks is None else feat_masks[i]); states.append(code); i += 1
-        delta, hid = compute_g(code, lp, lm, cfg, L_); hids.append(hid)
-        code = topk_mask(_act(code + delta[..., :F], cfg), k); out = out + delta[..., F:]
+        delta, hid = compute_g(code, lp, lm, cfg, L_, alpha); hids.append(hid)
+        code = topk_mask(_act(code + delta[..., :F], cfg, alpha), k); out = out + delta[..., F:]
         code = _mask_apply(code, None if feat_masks is None else feat_masks[i]); states.append(code); i += 1
     logits = out * p['out_scale'] + p['out_bias']
     if opts.get('return_internals'): return logits, states, {'attn': attns, 'hid': hids, 'out': out}
@@ -171,6 +172,7 @@ def prune_rulenet_g(p, masks, cfg, frac, grads=None, regrow_frac=0.0):
         m2, w2 = _select(to2(w), to2(m), None if g is None else to2(g), n, regrow_frac * n)
         return from2(m2, w.shape), from2(w2, w.shape)
     p = dict(p); p['layers'] = list(p['layers']); new = {'layers': []}
+    if 'alpha' in masks: new['alpha'] = masks['alpha']
     new['emb'], p['emb'] = do('emb', p['emb'], masks['emb'], None if grads is None else grads['emb'])
     for l, (lp, lm) in enumerate(zip(p['layers'], masks['layers'])):
         lp = dict(lp); nm = {}

@@ -55,9 +55,13 @@ def train(cfg, Xtr, seed=0, evals=None, log=print):
     grad_fn = jax.jit(lambda p, x: jax.grad(lambda p_, x_: loss(p_, ones, x_)[0])(p, x))
     cur_frac = 0.0
     for i in range(steps):
+        if ste_step is not None and i >= ste_step and cfg.get('ste_ramp', 0) > 0 and 'alpha' in masks:
+            masks['alpha'] = jnp.asarray(min(1.0, (i - ste_step) / (cfg['ste_ramp'] * steps)), dtype=jnp.float32)
         if ste_step is not None and i == ste_step:
             # snap phase: forward pass becomes the discrete program (binary features, hard attention), STE gradients
             cfg = {**cfg, 'ste': True}; loss = make_loss(cfg)
+            masks = dict(masks); masks['alpha'] = jnp.asarray(0.0 if cfg.get('ste_ramp', 0) > 0 else 1.0, dtype=jnp.float32)
+            ones = jax.tree.map(jnp.ones_like, masks)
             step = _make_step(cfg, opt, loss)
             grad_fn = jax.jit(lambda p, x: jax.grad(lambda p_, x_: loss(p_, ones, x_)[0])(p, x))
             log(f"  step {i}: snapped to the discrete program (STE)")
@@ -75,6 +79,7 @@ def train(cfg, Xtr, seed=0, evals=None, log=print):
             ev = {k: evaluate(p, masks, cfg, X)['nll'] for k, X in (evals or {}).items()}
             hist.append({'step': i, 'train_nll': float(nll), **ev})
             log(f"  step {i:5d} train {float(nll):.4f} " + ' '.join(f"{k} {v:.4f}" for k, v in ev.items()) + f"  ({time.time()-t0:.0f}s)")
+    if 'alpha' in masks: masks['alpha'] = jnp.asarray(1.0, dtype=jnp.float32)
     return p, masks, hist, cfg
 
 @partial(jax.jit, static_argnums=(2, 4))

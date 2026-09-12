@@ -81,9 +81,10 @@ def execute_hard_g(bundle, X, binarize=True, hard_attn=True, keep_topk=True):
         if not keep_topk: return z
         thr = np.sort(z, -1)[..., -k][..., None]; return np.where((z >= thr) & (z > 0), z, 0.0)
     def binz(z): return (z > thr0).astype(np.float64) if binarize else z
+    def step_state(z): return topk(binz(act(z)))                              # same order as the model: act, threshold, top-k
     def grouped(code): cg = np.einsum('btf,fgv->btgv', code, Mv[:code.shape[-1]]); return cg, cg.sum(-1)
     def ungroup(dg, n): return np.einsum('btgv,fgv->btf', dg, Mv[:n])
-    code = binz(np.maximum(np.asarray(p['emb'] * m['emb']), 0)[X]); out = np.zeros((B, T, VOCAB))
+    code = binz(act(np.asarray(p['emb'] * m['emb'])[X])); out = np.zeros((B, T, VOCAB))
     dist = np.arange(T)[:, None] - np.arange(T)[None, :]
     for lp, lm in zip(p['layers'], m['layers']):
         cg, gs = grouped(code)
@@ -100,11 +101,10 @@ def execute_hard_g(bundle, X, binarize=True, hard_attn=True, keep_topk=True):
         dg = np.einsum('bhtkv,hkg->btgv', copied, P * same)
         dg[..., 0] += np.einsum('bhtk,hkg->btg', copied.sum(-1), P * to_bool)
         delta = ungroup(dg, F + VOCAB)
-        code = binz(topk(act(code + delta[..., :F]))); out += delta[..., F:]
+        code = step_state(code + delta[..., :F]); out += delta[..., F:]
         cg, gs = grouped(code)
         W1 = np.asarray(lp['W1'] * lm['W1']); W2 = np.asarray(lp['W2'] * lm['W2']); b1 = np.asarray(lp['b1'])
-        hid = act(code @ W1 + b1)
-        if binarize: hid = (hid > thr0).astype(np.float64)
+        hid = binz(act(code @ W1 + b1))
         delta = hid @ W2
         Gs = np.asarray(lp['Gs'] * lm['Gs']); Gd = np.asarray(lp['Gd'] * lm['Gd']); Tt = np.asarray(lp['T'])
         src = np.einsum('btkv,rk->btrv', cg, Gs); mapped = np.einsum('btrv,rvw->btrw', src, Tt) * hid[..., None]
@@ -112,7 +112,7 @@ def execute_hard_g(bundle, X, binarize=True, hard_attn=True, keep_topk=True):
         dg = np.einsum('btrw,rg->btgw', mapped, np.where(kind_ok, Gd, 0.0))
         dg[..., 0] += np.einsum('btr,rg->btg', mapped.sum(-1), np.where(bool_ok, Gd, 0.0))
         delta = delta + ungroup(dg, F + VOCAB)
-        code = binz(topk(act(code + delta[..., :F]))); out += delta[..., F:]
+        code = step_state(code + delta[..., :F]); out += delta[..., F:]
     return out * np.asarray(p['out_scale']) + np.asarray(p['out_bias'])
 
 def north_star_any(bundle, X, ann, soft_logits, **kw):
