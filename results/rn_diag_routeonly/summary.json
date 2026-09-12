@@ -1,0 +1,169 @@
+{
+ "job": {
+  "name": "rn_diag_routeonly",
+  "analyze": false,
+  "data": {
+   "n_train": 20000,
+   "n_test": 1000
+  },
+  "seeds": [
+   0
+  ],
+  "cfg": {
+   "model": "rulenet",
+   "F": 96,
+   "R": 192,
+   "heads": 3,
+   "layers": 2,
+   "k": 16,
+   "fan_in": 3,
+   "fan_out": 2,
+   "n_a": 16,
+   "n_u": 16,
+   "n_p": 48,
+   "prune_at": [
+    0.2,
+    0.3,
+    0.4,
+    0.5,
+    0.6
+   ],
+   "l1": 0.0001,
+   "steps": 3000,
+   "lr": 0.003,
+   "bs": 64,
+   "log_every": 500,
+   "prune_groups": [
+    "A",
+    "u",
+    "P"
+   ]
+  }
+ },
+ "n_seeds": 1,
+ "summary": {
+  "eval": {
+   "shift": {
+    "acc_rule": {
+     "mean": 0.7824,
+     "std": 0.0,
+     "n": 1
+    },
+    "oracle": {
+     "mean": 0.6531374998317959,
+     "std": 0.0,
+     "n": 1
+    },
+    "nll_heldout_sw": {
+     "mean": 2.5200517177581787,
+     "std": 0.0,
+     "n": 1
+    },
+    "oracle_heldout_arg": {
+     "mean": 0.3232919480534359,
+     "std": 0.0,
+     "n": 1
+    },
+    "nll_heldout": {
+     "mean": 4.764220237731934,
+     "std": 0.0,
+     "n": 1
+    },
+    "acc_heldout": {
+     "mean": 0.308411214953271,
+     "std": 0.0,
+     "n": 1
+    },
+    "nll_heldout_arg": {
+     "mean": 4.9968390464782715,
+     "std": 0.0,
+     "n": 1
+    },
+    "oracle_heldout": {
+     "mean": 0.29445112006226276,
+     "std": 0.0,
+     "n": 1
+    },
+    "oracle_heldout_sw": {
+     "mean": 0.0,
+     "std": 0.0,
+     "n": 1
+    },
+    "nll": {
+     "mean": 1.6914674043655396,
+     "std": 0.0,
+     "n": 1
+    }
+   },
+   "iid": {
+    "acc_rule": {
+     "mean": 0.97395,
+     "std": 0.0,
+     "n": 1
+    },
+    "oracle": {
+     "mean": 0.6166340136624466,
+     "std": 0.0,
+     "n": 1
+    },
+    "nll": {
+     "mean": 0.688391387462616,
+     "std": 0.0,
+     "n": 1
+    }
+   },
+   "long": {
+    "acc_rule": {
+     "mean": 0.8166428571428571,
+     "std": 0.0,
+     "n": 1
+    },
+    "oracle": {
+     "mean": 0.5303263790370106,
+     "std": 0.0,
+     "n": 1
+    },
+    "nll_heldout_sw": {
+     "mean": 2.501453161239624,
+     "std": 0.0,
+     "n": 1
+    },
+    "oracle_heldout_arg": {
+     "mean": 0.30477798719103083,
+     "std": 0.0,
+     "n": 1
+    },
+    "nll_heldout": {
+     "mean": 5.033215522766113,
+     "std": 0.0,
+     "n": 1
+    },
+    "acc_heldout": {
+     "mean": 0.2708669897684437,
+     "std": 0.0,
+     "n": 1
+    },
+    "nll_heldout_arg": {
+     "mean": 5.301375865936279,
+     "std": 0.0,
+     "n": 1
+    },
+    "oracle_heldout": {
+     "mean": 0.277697552141747,
+     "std": 0.0,
+     "n": 1
+    },
+    "oracle_heldout_sw": {
+     "mean": 0.0,
+     "std": 0.0,
+     "n": 1
+    },
+    "nll": {
+     "mean": 1.3326587677001953,
+     "std": 0.0,
+     "n": 1
+    }
+   }
+  }
+ }
+}

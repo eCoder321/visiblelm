@@ -239,10 +239,12 @@ def apply_rulenet(p, masks, cfg, x, feat_masks=None, opts=None):
 # ----------------------------------------------------------------------------- registry
 INIT = {'dense': init_dense, 'bottleneck': init_bottleneck, 'rulenet': init_rulenet}
 APPLY = {'dense': apply_dense, 'dense_sae': apply_dense_sae, 'bottleneck': apply_bottleneck, 'rulenet': apply_rulenet}
+PRUNE = {}
+REG = {}
 
 def n_states(cfg):
     return {'dense': cfg['layers'] + 1, 'dense_sae': cfg['layers'] + 1, 'bottleneck': cfg['layers'] + 1,
-            'rulenet': 2 * cfg['layers'] + 1}[cfg['model']]
+            'rulenet': 2 * cfg['layers'] + 1, 'rulenet_g': 2 * cfg['layers'] + 1}[cfg['model']]
 
 def state_dim(cfg):
     return cfg['d'] if cfg['model'] == 'dense' else cfg['F']
@@ -305,3 +307,14 @@ def mask_stats(masks):
     for l, lm in enumerate(masks.get('layers', [])):
         out[f'L{l}'] = {k: int(v.sum()) for k, v in lm.items()}
     return out
+
+PRUNE['rulenet'] = lambda p, masks, cfg, frac, grads=None, regrow_frac=0.0: prune_masks(p, masks, cfg, frac, grads, regrow_frac)
+def _reg_rulenet(p, masks, cfg):
+    reg = 0.0
+    for lp, lm in zip(p['layers'], masks['layers']):
+        reg = reg + sum(jnp.abs(lp[n] * lm[n]).sum() for n in ['A', 'u', 'P', 'W1', 'W2'])
+    if 'emb' in p: reg = reg + jnp.abs(p['emb'] * masks['emb']).sum()
+    return reg
+REG['rulenet'] = _reg_rulenet
+from models_g import init_rulenet_g, apply_rulenet_g, prune_rulenet_g, reg_rulenet_g
+INIT['rulenet_g'] = init_rulenet_g; APPLY['rulenet_g'] = apply_rulenet_g; PRUNE['rulenet_g'] = prune_rulenet_g; REG['rulenet_g'] = reg_rulenet_g

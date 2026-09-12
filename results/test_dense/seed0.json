@@ -1,0 +1,168 @@
+{
+ "name": "test_dense",
+ "seed": 0,
+ "cfg": {
+  "model": "dense",
+  "d": 64,
+  "layers": 2,
+  "heads": 2,
+  "ff": 128,
+  "steps": 300,
+  "lr": 0.003,
+  "bs": 64,
+  "log_every": 300,
+  "T_max": 32
+ },
+ "history": [
+  {
+   "step": 0,
+   "train_nll": 3.1084375381469727,
+   "iid": 3.112938642501831
+  },
+  {
+   "step": 299,
+   "train_nll": 0.7374769449234009,
+   "iid": 0.7469532489776611
+  }
+ ],
+ "train_seconds": 13.726107120513916,
+ "eval": {
+  "iid": {
+   "nll": 0.7469532489776611,
+   "oracle": 0.6196827803434315,
+   "acc_rule": 0.952
+  },
+  "shift": {
+   "nll": 1.7578407526016235,
+   "oracle": 0.6559899279638742,
+   "nll_heldout": 3.475754976272583,
+   "oracle_heldout": 0.28506590589273645,
+   "nll_heldout_arg": 3.606659173965454,
+   "oracle_heldout_arg": 0.31291967379675956,
+   "nll_heldout_sw": 2.208253860473633,
+   "oracle_heldout_sw": -0.0,
+   "acc_rule": 0.7001666666666667,
+   "acc_heldout": 0.39707927677329624
+  },
+  "long": {
+   "nll": 1.5454630851745605,
+   "oracle": 0.5320449127600825,
+   "nll_heldout": 3.6826300621032715,
+   "oracle_heldout": 0.2759053899777033,
+   "nll_heldout_arg": 3.80385422706604,
+   "oracle_heldout_arg": 0.3037367775215259,
+   "nll_heldout_sw": 2.6250948905944824,
+   "oracle_heldout_sw": -0.0,
+   "acc_rule": 0.731845238095238,
+   "acc_heldout": 0.3383259911894273
+  }
+ },
+ "eval_sae": {
+  "1.0": {
+   "iid": {
+    "nll": 0.7469532489776611,
+    "oracle": 0.6196827803434315,
+    "acc_rule": 0.952
+   },
+   "shift": {
+    "nll": 1.7578409910202026,
+    "oracle": 0.6559899279638742,
+    "nll_heldout": 3.475754976272583,
+    "oracle_heldout": 0.28506590589273645,
+    "nll_heldout_arg": 3.6066596508026123,
+    "oracle_heldout_arg": 0.31291967379675956,
+    "nll_heldout_sw": 2.208253860473633,
+    "oracle_heldout_sw": -0.0,
+    "acc_rule": 0.7001666666666667,
+    "acc_heldout": 0.39707927677329624
+   }
+  },
+  "0.0": {
+   "iid": {
+    "nll": 0.749703586101532,
+    "oracle": 0.6196827803434315,
+    "acc_rule": 0.951
+   },
+   "shift": {
+    "nll": 1.8473223447799683,
+    "oracle": 0.6559899279638742,
+    "nll_heldout": 3.717277765274048,
+    "oracle_heldout": 0.28506590589273645,
+    "nll_heldout_arg": 3.865910530090332,
+    "oracle_heldout_arg": 0.31291967379675956,
+    "nll_heldout_sw": 2.268505334854126,
+    "oracle_heldout_sw": -0.0,
+    "acc_rule": 0.6841666666666667,
+    "acc_heldout": 0.39151599443671764
+   }
+  }
+ },
+ "analysis": {
+  "sae": {
+   "completeness_gap": 0.0027503371238708496,
+   "magnitude_audit": {
+    "nll": 0.7469532489776611,
+    "nll_binarized": 2.903172731399536,
+    "gap": 2.156219482421875
+   },
+   "legibility": {
+    "state0": {
+     "n_live": 82,
+     "n_clean": 24,
+     "n_half_clean": 45,
+     "median_heldF1_live": 0.559216320514679,
+     "clean_mass_frac": 0.2515142261981964,
+     "clean_event_frac": 0.12010118136829191
+    },
+    "state1": {
+     "n_live": 96,
+     "n_clean": 16,
+     "n_half_clean": 43,
+     "median_heldF1_live": 0.4694516658782959,
+     "clean_mass_frac": 0.055577293038368225,
+     "clean_event_frac": 0.07195048309178743
+    },
+    "state2": {
+     "n_live": 96,
+     "n_clean": 12,
+     "n_half_clean": 42,
+     "median_heldF1_live": 0.45092296600341797,
+     "clean_mass_frac": 0.018315816298127174,
+     "clean_event_frac": 0.042560386473429954
+    }
+   },
+   "faithfulness_iid": {
+    "base": -0.4146337628364563,
+    "necessity": -6.561990749835968,
+    "sufficiency": -2.033239758014679,
+    "random_same_size": -4.337923628091812,
+    "all_ablated": -4.366822218894958,
+    "sufficiency_retained_frac": 0.5880695252522962,
+    "random_retained_frac": 0.003700424254383308,
+    "sufficiency_argmax_ok": 0.35,
+    "circuit_size_median": 5.0,
+    "circuit_size_mean": 7.425,
+    "n_nodes_mean": 474.95,
+    "tau": 0.1,
+    "n_examples": 40,
+    "circuit_clean_frac": 0.14814814814814814
+   },
+   "faithfulness_shift": {
+    "base": -1.501216423511505,
+    "necessity": -7.098346447944641,
+    "sufficiency": -1.877414232492447,
+    "random_same_size": -4.683173376321792,
+    "all_ablated": -4.633035856485367,
+    "sufficiency_retained_frac": 44.65412370804837,
+    "random_retained_frac": 29.56235594434172,
+    "sufficiency_argmax_ok": 0.425,
+    "circuit_size_median": 12.0,
+    "circuit_size_mean": 15.475,
+    "n_nodes_mean": 475.225,
+    "tau": 0.1,
+    "n_examples": 40,
+    "circuit_clean_frac": 0.1987075928917609
+   }
+  }
+ }
+}

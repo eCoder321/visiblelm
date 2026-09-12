@@ -2,7 +2,7 @@
 and split evaluation against the oracle."""
 import time, jax, jax.numpy as jnp, numpy as np, optax
 from functools import partial
-from models import INIT, APPLY, bottleneck_aux_loss, prune_masks, mask_stats, init_sae, sae_encode, sae_decode, topk_mask
+from models import INIT, APPLY, PRUNE, REG, bottleneck_aux_loss, mask_stats, init_sae, sae_encode, sae_decode, topk_mask
 from testbed import annotate, VOCAB
 
 def nll_from_logits(logits, x, mask=None):
@@ -20,11 +20,8 @@ def make_loss(cfg):
         logits, states = APPLY[cfg['model']](p, masks, cfg, x)
         nll = nll_from_logits(logits, x)
         reg = 0.0
-        if cfg['model'] == 'rulenet' and cfg.get('l1', 0) > 0:
-            for lp, lm in zip(p['layers'], masks['layers']):
-                reg = reg + sum(jnp.abs(lp[n] * lm[n]).sum() for n in ['A', 'u', 'P', 'W1', 'W2'])
-            if 'emb' in p: reg = reg + jnp.abs(p['emb'] * masks['emb']).sum()
-            reg = cfg['l1'] * reg
+        if cfg['model'] in REG and cfg.get('l1', 0) > 0:
+            reg = cfg['l1'] * REG[cfg['model']](p, masks, cfg)
         return nll + reg, nll
     return loss
 
@@ -46,7 +43,7 @@ def train(cfg, Xtr, seed=0, evals=None, log=print):
         return p, os, nll
     os = opt.init(p)
     rng = np.random.default_rng(seed); hist = []; t0 = time.time()
-    prune_at = sorted(cfg.get('prune_at', [])) if cfg['model'] == 'rulenet' else []
+    prune_at = sorted(cfg.get('prune_at', [])) if cfg['model'] in PRUNE else []
     prune_steps = [int(f * steps) for f in prune_at]
     regrow_every = cfg.get('regrow_every', 0); regrow_until = int(cfg.get('regrow_until', 0.8) * steps)
     ones = jax.tree.map(jnp.ones_like, masks)
@@ -59,7 +56,7 @@ def train(cfg, Xtr, seed=0, evals=None, log=print):
             if is_prune: cur_frac = (prune_steps.index(i) + 1) / len(prune_steps)
             rf = cfg.get('regrow_frac', 0.0)
             g = grad_fn(p, jnp.asarray(Xtr[rng.integers(0, len(Xtr), 256)])) if rf > 0 else None
-            masks, p = prune_masks(p, masks, cfg, cur_frac, grads=g, regrow_frac=rf)
+            masks, p = PRUNE[cfg['model']](p, masks, cfg, cur_frac, grads=g, regrow_frac=rf)
             if is_prune: log(f"  step {i}: pruned to frac {cur_frac:.2f} -> {mask_stats(masks)}")
         idx = rng.integers(0, len(Xtr), cfg['bs'])
         p, os, nll = step(p, masks, os, jnp.asarray(Xtr[idx]))
@@ -100,6 +97,12 @@ def evaluate(p, masks, cfg, X, opts=None, ann=None):
         r['acc_rule'] = float((pred == true)[rule].mean())
         m = ann['heldout'][:, :-1].astype(bool)
         if m.sum() > 0: r['acc_heldout'] = float((pred == true)[m].mean())
+        # per-mode breakdown of held-out-argument steps
+        from testbed import MODE_NAMES
+        ma = ann['heldout_arg'][:, :-1].astype(bool); md = ann['mode'][:, :-1]
+        for mi, mn in enumerate(MODE_NAMES):
+            mm = ma & (md == mi)
+            if mm.sum() > 0: r[f'acc_heldout_{mn}'] = float((pred == true)[mm].mean())
     return r
 
 # ----------------------------------------------------------------------------- SAE fitting (null model)

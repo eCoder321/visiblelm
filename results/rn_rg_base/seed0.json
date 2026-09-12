@@ -1,0 +1,126 @@
+{
+ "name": "rn_rg_base",
+ "seed": 0,
+ "cfg": {
+  "model": "rulenet",
+  "F": 96,
+  "R": 192,
+  "heads": 3,
+  "layers": 2,
+  "k": 16,
+  "fan_in": 3,
+  "fan_out": 2,
+  "emb": "learned",
+  "emb_fan": 3,
+  "prune_at": [
+   0.2,
+   0.3,
+   0.4,
+   0.5,
+   0.6
+  ],
+  "l1": 0.0001,
+  "lr": 0.003,
+  "bs": 64,
+  "log_every": 500,
+  "regrow_every": 50,
+  "regrow_frac": 0.3,
+  "regrow_until": 0.85,
+  "steps": 4000,
+  "n_a": 16,
+  "n_u": 16,
+  "n_p": 48,
+  "T_max": 32
+ },
+ "history": [
+  {
+   "step": 0,
+   "train_nll": 4.6329474449157715,
+   "iid": 4.606485843658447
+  },
+  {
+   "step": 500,
+   "train_nll": 0.7715989947319031,
+   "iid": 0.7550877928733826
+  },
+  {
+   "step": 1000,
+   "train_nll": 0.7016569375991821,
+   "iid": 0.6953341960906982
+  },
+  {
+   "step": 1500,
+   "train_nll": 0.6704826354980469,
+   "iid": 0.6644565463066101
+  },
+  {
+   "step": 2000,
+   "train_nll": 1.8976905345916748,
+   "iid": 1.8105931282043457
+  },
+  {
+   "step": 2500,
+   "train_nll": 1.4388960599899292,
+   "iid": 1.4727330207824707
+  },
+  {
+   "step": 3000,
+   "train_nll": 1.124542236328125,
+   "iid": 1.1390241384506226
+  },
+  {
+   "step": 3500,
+   "train_nll": 1.13825523853302,
+   "iid": 1.0644471645355225
+  },
+  {
+   "step": 3999,
+   "train_nll": 1.0433207750320435,
+   "iid": 1.0273455381393433
+  }
+ ],
+ "train_seconds": 421.61651706695557,
+ "eval": {
+  "iid": {
+   "nll": 1.0273455381393433,
+   "oracle": 0.6166340136624466,
+   "acc_rule": 0.9052
+  },
+  "shift": {
+   "nll": 2.242133378982544,
+   "oracle": 0.6531374998317959,
+   "nll_heldout": 3.4755704402923584,
+   "oracle_heldout": 0.29445112006226276,
+   "nll_heldout_arg": 3.5397913455963135,
+   "oracle_heldout_arg": 0.3232919480534359,
+   "nll_heldout_sw": 2.8463294506073,
+   "oracle_heldout_sw": -0.0,
+   "acc_rule": 0.54105,
+   "acc_heldout": 0.3525913338997451,
+   "acc_heldout_rept": 0.875,
+   "acc_heldout_succ": 0.0,
+   "acc_heldout_pred": 0.0,
+   "acc_heldout_pls2": 0.0,
+   "acc_heldout_cpy2": 0.6944444444444444,
+   "acc_heldout_cpy3": 0.4367816091954023
+  },
+  "long": {
+   "nll": 1.805707335472107,
+   "oracle": 0.5303263790370106,
+   "nll_heldout": 3.6030113697052,
+   "oracle_heldout": 0.277697552141747,
+   "nll_heldout_arg": 3.665203332901001,
+   "oracle_heldout_arg": 0.30477798719103083,
+   "nll_heldout_sw": 2.9880332946777344,
+   "oracle_heldout_sw": -0.0,
+   "acc_rule": 0.6488214285714285,
+   "acc_heldout": 0.31879375336564353,
+   "acc_heldout_rept": 0.7795275590551181,
+   "acc_heldout_succ": 0.0,
+   "acc_heldout_pred": 0.0,
+   "acc_heldout_pls2": 0.0,
+   "acc_heldout_cpy2": 0.759493670886076,
+   "acc_heldout_cpy3": 0.5619047619047619
+  }
+ }
+}

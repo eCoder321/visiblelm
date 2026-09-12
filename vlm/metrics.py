@@ -58,6 +58,12 @@ def feature_names(cfg):
     tok = [f"cur={MODE_NAMES[v]}" if v < M_MODES else f"cur={v - M_MODES}" for v in range(VOCAB)]
     if cfg['model'] == 'rulenet':
         return tok + [f"h{i}" for i in range(VOCAB, F)]
+    if cfg['model'] == 'rulenet_g':
+        from models_g import layout
+        names = []
+        for (name, start, size, kind) in layout(cfg)['groups'][:-2]:
+            names += [f"{name}={token_name(v) if kind == 'mode' else v}" if kind != 'bool' else name for v in range(size)]
+        return names
     return [f"f{i}" for i in range(F)]
 
 def token_name(v):
@@ -120,8 +126,9 @@ def path_faithfulness(bundle, X, ann, n_examples=50, tau=0.1, seed=0, which='mai
                          circuit=[(int(a), int(b), int(c)) for a, b, c in circ],
                          effects={f"{a},{b},{c}": float(e) for (a, b, c), e in zip(nodes, eff) if e > tau}))
     r = np.array([[q['base'], q['necessity'], q['sufficiency'], q['random_same_size'], q['all_ablated'], q['circuit_size'], q['n_nodes']] for q in rows])
-    def frac(v):  # fraction of the (base - all_ablated) gap retained
-        return float(np.mean((v - r[:, 4]) / np.maximum(r[:, 0] - r[:, 4], 1e-3)))
+    def frac(v):  # fraction of the (base - all_ablated) log-prob gap retained, aggregated over examples
+        num = (v - r[:, 4]).sum(); den = (r[:, 0] - r[:, 4]).sum()
+        return float(num / den) if den > 0.5 else float('nan')
     summ = dict(base=float(r[:, 0].mean()), necessity=float(r[:, 1].mean()), sufficiency=float(r[:, 2].mean()),
                 random_same_size=float(r[:, 3].mean()), all_ablated=float(r[:, 4].mean()),
                 sufficiency_retained_frac=frac(r[:, 2]), random_retained_frac=frac(r[:, 3]),
@@ -239,7 +246,7 @@ def full_analysis(bundle, S, ann, n_faith=40, log=print):
         b, m = magnitude_audit(bundle, S['train'][:1000], Xi, which=which); r['magnitude_audit'] = {'nll': b, 'nll_binarized': m, 'gap': m - b}
         log(f"  [{which}] completeness gap {r['completeness_gap']:.4f}   magnitude gap {m - b:.4f} ({b:.4f} -> {m:.4f})")
         extra = None
-        if cfg['model'] == 'rulenet' and which == 'main':
+        if cfg['model'] in ('rulenet', 'rulenet_g') and which == 'main':
             _, st, internals = _fwd(bundle['params'], bundle['masks'], _cfg_t(cfg), jnp.asarray(Xi), None, (('return_internals', True),))
             extra = {f"rules{l}": np.asarray(h) for l, h in enumerate(internals['hid'])}
         leg, labels = legibility(bundle, Xi, ai, which=which, extra=extra)
@@ -255,8 +262,12 @@ def full_analysis(bundle, S, ann, n_faith=40, log=print):
             summ['circuit_clean_frac'] = clean_nodes / max(tot_nodes, 1)
             r[f'faithfulness_{split}'] = summ
             log(f"  [{which}] faithfulness {split}: " + json.dumps({k: round(v, 3) for k, v in summ.items()}))
-        if cfg['model'] == 'rulenet' and which == 'main':
-            text, dl = rulebook(bundle, labels); r['rulebook'] = text; r['description_length'] = dl
+        if cfg['model'] in ('rulenet', 'rulenet_g') and which == 'main':
+            if cfg['model'] == 'rulenet_g':
+                from models_g import rulebook_g; text, dl = rulebook_g(bundle, labels)
+            else:
+                text, dl = rulebook(bundle, labels)
+            r['rulebook'] = text; r['description_length'] = dl
             log(f"  rulebook description length {dl}")
         out[which] = r
     return out
