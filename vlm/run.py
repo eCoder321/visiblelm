@@ -65,9 +65,15 @@ if __name__ == '__main__':
         print(s, flush=True); logf.write(s + '\n'); logf.flush()
     rs = []
     for seed in job.get('seeds', [0]):
+        seed_json = os.path.join(out, f'seed{seed}.json')
+        if os.path.exists(seed_json):
+            # RESUMABILITY: a completed seed (json written) is skipped on relaunch, so a job interrupted by a
+            # container restart or any other crash can be resumed by rerunning the exact same command.
+            log(f"### {job['name']} seed {seed}  already complete, skipping ({time.strftime('%H:%M:%S')})")
+            rs.append(json.load(open(seed_json))); continue
         log(f"### {job['name']} seed {seed}  {time.strftime('%H:%M:%S')}")
         r = run_seed(job, seed, out, log)
-        json.dump(r, open(os.path.join(out, f'seed{seed}.json'), 'w'), indent=1, default=float); rs.append(r)
+        json.dump(r, open(seed_json, 'w'), indent=1, default=float); rs.append(r)
     s = {'job': job, 'n_seeds': len(rs), 'summary': summarize([{k: v for k, v in r.items() if k in ('eval', 'eval_sae', 'analysis')} for r in rs])}
     json.dump(s, open(os.path.join(out, 'summary.json'), 'w'), indent=1, default=float)
     log("### done " + json.dumps(s['summary'].get('eval', {}), default=float)[:2000])
