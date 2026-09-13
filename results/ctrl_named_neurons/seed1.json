@@ -1,0 +1,171 @@
+{
+ "name": "ctrl_named_neurons",
+ "seed": 1,
+ "cfg": {
+  "model": "bottleneck",
+  "d": 64,
+  "layers": 2,
+  "heads": 2,
+  "ff": 128,
+  "F": 64,
+  "k": 12,
+  "k_write": 8,
+  "k_aux": 8,
+  "code_residual": true,
+  "identity_dict": true,
+  "steps": 3000,
+  "lr": 0.003,
+  "bs": 64,
+  "log_every": 500,
+  "T_max": 32
+ },
+ "history": [
+  {
+   "step": 0,
+   "train_nll": 3.0911753177642822,
+   "iid": 3.0909440517425537
+  },
+  {
+   "step": 500,
+   "train_nll": 1.4528719186782837,
+   "iid": 1.4685189723968506
+  },
+  {
+   "step": 1000,
+   "train_nll": 1.1011711359024048,
+   "iid": 1.3643474578857422
+  },
+  {
+   "step": 1500,
+   "train_nll": 1.2443517446517944,
+   "iid": 1.3205260038375854
+  },
+  {
+   "step": 2000,
+   "train_nll": 1.0177565813064575,
+   "iid": 1.2939257621765137
+  },
+  {
+   "step": 2500,
+   "train_nll": 1.1661978960037231,
+   "iid": 1.2635462284088135
+  },
+  {
+   "step": 2999,
+   "train_nll": 1.2167044878005981,
+   "iid": 1.2596991062164307
+  }
+ ],
+ "train_seconds": 266.86303305625916,
+ "eval": {
+  "iid": {
+   "nll": 1.2596991062164307,
+   "oracle": 0.6166340136624466,
+   "acc_rule": 0.7719
+  },
+  "shift": {
+   "nll": 2.6947708129882812,
+   "oracle": 0.6531374998317959,
+   "nll_heldout": 4.142230033874512,
+   "oracle_heldout": 0.29445112006226276,
+   "nll_heldout_arg": 4.286386966705322,
+   "oracle_heldout_arg": 0.3232919480534359,
+   "nll_heldout_sw": 2.794705390930176,
+   "oracle_heldout_sw": -0.0,
+   "acc_rule": 0.42695,
+   "acc_heldout": 0.23619371282922685,
+   "acc_heldout_rept": 0.6910377358490566,
+   "acc_heldout_succ": 0.0,
+   "acc_heldout_pred": 0.0,
+   "acc_heldout_pls2": 0.0029850746268656717,
+   "acc_heldout_cpy2": 0.4,
+   "acc_heldout_cpy3": 0.21839080459770116
+  },
+  "long": {
+   "nll": 2.2631304264068604,
+   "oracle": 0.5303263790370106,
+   "nll_heldout": 4.438043594360352,
+   "oracle_heldout": 0.277697552141747,
+   "nll_heldout_arg": 4.596076965332031,
+   "oracle_heldout_arg": 0.30477798719103083,
+   "nll_heldout_sw": 2.870847702026367,
+   "oracle_heldout_sw": -0.0,
+   "acc_rule": 0.5339642857142857,
+   "acc_heldout": 0.210016155088853,
+   "acc_heldout_rept": 0.38976377952755903,
+   "acc_heldout_succ": 0.0,
+   "acc_heldout_pred": 0.003257328990228013,
+   "acc_heldout_pls2": 0.003289473684210526,
+   "acc_heldout_cpy2": 0.5569620253164557,
+   "acc_heldout_cpy3": 0.43492063492063493
+  }
+ },
+ "analysis": {
+  "main": {
+   "completeness_gap": 0.0,
+   "magnitude_audit": {
+    "nll": 1.2596991062164307,
+    "nll_binarized": 3.4715499877929688,
+    "gap": 2.211850881576538
+   },
+   "legibility": {
+    "state0": {
+     "n_live": 42,
+     "n_clean": 2,
+     "n_half_clean": 20,
+     "median_heldF1_live": 0.4838132858276367,
+     "clean_mass_frac": 0.00983688049018383,
+     "clean_event_frac": 0.006449845693102756
+    },
+    "state1": {
+     "n_live": 46,
+     "n_clean": 3,
+     "n_half_clean": 24,
+     "median_heldF1_live": 0.5052525997161865,
+     "clean_mass_frac": 0.02239343337714672,
+     "clean_event_frac": 0.009032553001009544
+    },
+    "state2": {
+     "n_live": 48,
+     "n_clean": 2,
+     "n_half_clean": 21,
+     "median_heldF1_live": 0.4810481369495392,
+     "clean_mass_frac": 0.019175689667463303,
+     "clean_event_frac": 0.004777931874302337
+    }
+   },
+   "faithfulness_iid": {
+    "base": -1.1981912940740584,
+    "necessity": -5.170860171318054,
+    "sufficiency": -3.3529549658298494,
+    "random_same_size": -4.648013627529144,
+    "all_ablated": -3.116251105070114,
+    "sufficiency_retained_frac": -0.1234079664266642,
+    "random_retained_frac": -0.7985999777887949,
+    "sufficiency_argmax_ok": 0.125,
+    "circuit_size_median": 10.0,
+    "circuit_size_mean": 12.05,
+    "n_nodes_mean": 435.15,
+    "tau": 0.1,
+    "n_examples": 40,
+    "circuit_clean_frac": 0.01867219917012448
+   },
+   "faithfulness_shift": {
+    "base": -2.1436133652925493,
+    "necessity": -7.290720430016518,
+    "sufficiency": -3.864657682180405,
+    "random_same_size": -6.400364863872528,
+    "all_ablated": -3.1105901896953583,
+    "sufficiency_retained_frac": -0.7798196124821787,
+    "random_retained_frac": -3.4021235991967926,
+    "sufficiency_argmax_ok": 0.1,
+    "circuit_size_median": 13.5,
+    "circuit_size_mean": 17.975,
+    "n_nodes_mean": 426.775,
+    "tau": 0.1,
+    "n_examples": 40,
+    "circuit_clean_frac": 0.009735744089012517
+   }
+  }
+ }
+}

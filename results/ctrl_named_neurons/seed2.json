@@ -1,0 +1,171 @@
+{
+ "name": "ctrl_named_neurons",
+ "seed": 2,
+ "cfg": {
+  "model": "bottleneck",
+  "d": 64,
+  "layers": 2,
+  "heads": 2,
+  "ff": 128,
+  "F": 64,
+  "k": 12,
+  "k_write": 8,
+  "k_aux": 8,
+  "code_residual": true,
+  "identity_dict": true,
+  "steps": 3000,
+  "lr": 0.003,
+  "bs": 64,
+  "log_every": 500,
+  "T_max": 32
+ },
+ "history": [
+  {
+   "step": 0,
+   "train_nll": 3.0913805961608887,
+   "iid": 3.0912227630615234
+  },
+  {
+   "step": 500,
+   "train_nll": 1.4497952461242676,
+   "iid": 1.3008023500442505
+  },
+  {
+   "step": 1000,
+   "train_nll": 1.0317007303237915,
+   "iid": 1.0412604808807373
+  },
+  {
+   "step": 1500,
+   "train_nll": 1.0158270597457886,
+   "iid": 0.9833967685699463
+  },
+  {
+   "step": 2000,
+   "train_nll": 0.9965593814849854,
+   "iid": 1.000136137008667
+  },
+  {
+   "step": 2500,
+   "train_nll": 1.0014889240264893,
+   "iid": 0.9831576943397522
+  },
+  {
+   "step": 2999,
+   "train_nll": 1.031222939491272,
+   "iid": 0.9882673025131226
+  }
+ ],
+ "train_seconds": 273.9610028266907,
+ "eval": {
+  "iid": {
+   "nll": 0.9882673025131226,
+   "oracle": 0.6166340136624466,
+   "acc_rule": 0.8689
+  },
+  "shift": {
+   "nll": 2.4005589485168457,
+   "oracle": 0.6531374998317959,
+   "nll_heldout": 3.407055616378784,
+   "oracle_heldout": 0.29445112006226276,
+   "nll_heldout_arg": 3.61895751953125,
+   "oracle_heldout_arg": 0.3232919480534359,
+   "nll_heldout_sw": 1.3357808589935303,
+   "oracle_heldout_sw": -0.0,
+   "acc_rule": 0.48785,
+   "acc_heldout": 0.3644859813084112,
+   "acc_heldout_rept": 0.6462264150943396,
+   "acc_heldout_succ": 0.0,
+   "acc_heldout_pred": 0.0,
+   "acc_heldout_pls2": 0.0,
+   "acc_heldout_cpy2": 0.7888888888888889,
+   "acc_heldout_cpy3": 0.47701149425287354
+  },
+  "long": {
+   "nll": 2.048278570175171,
+   "oracle": 0.5303263790370106,
+   "nll_heldout": 3.812551498413086,
+   "oracle_heldout": 0.277697552141747,
+   "nll_heldout_arg": 4.018689155578613,
+   "oracle_heldout_arg": 0.30477798719103083,
+   "nll_heldout_sw": 1.790530800819397,
+   "oracle_heldout_sw": -0.0,
+   "acc_rule": 0.585,
+   "acc_heldout": 0.2983306408185245,
+   "acc_heldout_rept": 0.35039370078740156,
+   "acc_heldout_succ": 0.0,
+   "acc_heldout_pred": 0.0,
+   "acc_heldout_pls2": 0.0,
+   "acc_heldout_cpy2": 0.8059071729957806,
+   "acc_heldout_cpy3": 0.5936507936507937
+  }
+ },
+ "analysis": {
+  "main": {
+   "completeness_gap": 0.0,
+   "magnitude_audit": {
+    "nll": 0.9882673025131226,
+    "nll_binarized": 3.472961187362671,
+    "gap": 2.4846938848495483
+   },
+   "legibility": {
+    "state0": {
+     "n_live": 46,
+     "n_clean": 0,
+     "n_half_clean": 23,
+     "median_heldF1_live": 0.49828463792800903,
+     "clean_mass_frac": 0.0,
+     "clean_event_frac": 0.0
+    },
+    "state1": {
+     "n_live": 49,
+     "n_clean": 1,
+     "n_half_clean": 27,
+     "median_heldF1_live": 0.5132181644439697,
+     "clean_mass_frac": 0.04729340970516205,
+     "clean_event_frac": 0.0036081359929252235
+    },
+    "state2": {
+     "n_live": 51,
+     "n_clean": 1,
+     "n_half_clean": 23,
+     "median_heldF1_live": 0.46963122487068176,
+     "clean_mass_frac": 0.036483876407146454,
+     "clean_event_frac": 0.0038680318543799774
+    }
+   },
+   "faithfulness_iid": {
+    "base": -0.733119910955429,
+    "necessity": -5.373576372861862,
+    "sufficiency": -3.281894624233246,
+    "random_same_size": -5.0677925705909725,
+    "all_ablated": -3.348832514882088,
+    "sufficiency_retained_frac": 0.02559069010424003,
+    "random_retained_frac": -0.6571670194685818,
+    "sufficiency_argmax_ok": 0.125,
+    "circuit_size_median": 10.0,
+    "circuit_size_mean": 12.05,
+    "n_nodes_mean": 431.15,
+    "tau": 0.1,
+    "n_examples": 40,
+    "circuit_clean_frac": 0.004149377593360996
+   },
+   "faithfulness_shift": {
+    "base": -2.137163308262825,
+    "necessity": -6.2333300590515135,
+    "sufficiency": -3.5501508682966234,
+    "random_same_size": -5.884686851501465,
+    "all_ablated": -3.7253076076507567,
+    "sufficiency_retained_frac": 0.11029019178020456,
+    "random_retained_frac": -1.3596870540560635,
+    "sufficiency_argmax_ok": 0.15,
+    "circuit_size_median": 11.0,
+    "circuit_size_mean": 13.6,
+    "n_nodes_mean": 424.85,
+    "tau": 0.1,
+    "n_examples": 40,
+    "circuit_clean_frac": 0.0
+   }
+  }
+ }
+}
