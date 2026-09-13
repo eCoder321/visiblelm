@@ -62,6 +62,13 @@ def train(cfg, Xtr, seed=0, evals=None, log=print):
             cfg = {**cfg, 'ste': True}; loss = make_loss(cfg)
             masks = dict(masks); masks['alpha'] = jnp.asarray(0.0 if cfg.get('ste_ramp', 0) > 0 else 1.0, dtype=jnp.float32)
             ones = jax.tree.map(jnp.ones_like, masks)
+            if cfg.get('lr_restart_at_snap'):
+                # re-create the optimizer with a fresh warmup+cosine schedule over the remaining steps
+                remaining = steps - i
+                sched = optax.warmup_cosine_decay_schedule(0.0, lr, min(100, remaining // 10), remaining, lr * 0.05)
+                opt = optax.chain(optax.clip_by_global_norm(1.0), optax.adamw(sched, weight_decay=cfg.get('wd', 0.01)))
+                os = opt.init(p)
+                log(f"  step {i}: lr restart at snap (fresh warmup+cosine over {remaining} remaining steps)")
             step = _make_step(cfg, opt, loss)
             grad_fn = jax.jit(lambda p, x: jax.grad(lambda p_, x_: loss(p_, ones, x_)[0])(p, x))
             log(f"  step {i}: snapped to the discrete program (STE)")
