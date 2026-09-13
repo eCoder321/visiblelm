@@ -64,12 +64,32 @@ initialised to the identity. Routing tables shrink from ~10⁴ to ~10² entries 
 | description length | — | 3,326 nonzero parameters | |
 | **north star**: discrete rulebook agrees with model | — | 49.5% | binarization alone: 30%; hard attention alone: 91% |
 
-Diagnosis: attention is already nearly discrete, but the rules use continuous activation *magnitudes*, so reading
-features as on/off loses half the predictions. Fix under test: clamp activations to [0,1] and, for the last quarter of
-training, run the forward pass as the discrete program (binary features, hard attention) with straight-through
-gradients, so the trained weights are the discrete program.
+Diagnosis: attention is already nearly discrete (hard attention alone keeps 91% agreement), but the rules use
+continuous activation *magnitudes* (binarizing alone drops agreement to 30%).
+
+### 3.4 Snapping to the discrete program (`rng_snap`, `rng_snap2`, 1 seed each)
+
+Fix: clamp activations to [0,1]; from the midpoint of training, run the forward pass as the discrete program (binary
+features including the embedding, hard attention) with straight-through gradients, ramping the hard/soft mix over a
+quarter of training. The trained weights then *are* the discrete program.
+
+| metric | soft (`rng_v1`) | sudden snap | ramped snap (`rng_snap2`) |
+|---|---|---|---|
+| iid NLL (floor 0.62) | 0.66 | 1.10 | 1.17 |
+| discrete rulebook agrees with model (iid / shift / held-out) | 50 / 27 / 44% | 91 / 85 / 88% | **100 / 100 / 100%** |
+| magnitude audit | +2.27 | +0.14 | **0.000** |
+| circuit sufficiency (retained fraction; random) | 0.55 (0.00) | 0.59 (0.00) | **1.01 (0.03)** |
+| argmax kept by the circuit alone | 38% | 40% | 60% |
+| circuit size (median nodes) | 12 | 5 | 5 |
+| circuit nodes that are clean | 50% | 53% | **63%** |
+
+What the discrete program gets wrong: accuracy is 97% far from mode switches but 69–82% within four positions of one,
+and it assigns 0.04 probability mass to a switch where the truth is 0.10. Under test: more discrete capacity
+(256 rules, 32 booleans, k=24), a longer hard phase, and enforcing the state cap on pre-threshold values.
 
 ## 4. Changelog
 
 * 2026-09-12 — testbed, harness, four model families, null-model baseline, propositional rulenet diagnostics,
   structured rulenet built and run once; north-star diagnosis; snap phase implemented; 3-seed controls queued.
+* 2026-09-13 — ramped snap: rulebook = model (100% agreement), zero hidden magnitude channel, circuit sufficient.
+  Cost 0.5 nats vs the soft model; capacity variant running.

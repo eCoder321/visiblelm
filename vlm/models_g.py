@@ -22,6 +22,18 @@ import jax, jax.numpy as jnp, numpy as np
 from testbed import VOCAB, M_MODES, C_TOK
 from models import topk_mask, _mask_apply
 
+def _state(z, cfg, k, alpha=1.0):
+    """State update: relu/clamp, keep the k largest soft activations, then (snap phase) hard-threshold with STE.
+    Ordering by the soft value keeps the k-cap binding even when every kept feature reads as 1."""
+    z = jax.nn.relu(z)
+    c = cfg.get('clamp', 0.0)
+    if c > 0: z = jnp.minimum(z, c)
+    z = topk_mask(z, k)
+    if cfg.get('ste', False):
+        hard = (z > cfg.get('ste_thr', 0.5)).astype(z.dtype)
+        z = z + alpha * jax.lax.stop_gradient(hard - z)
+    return z
+
 def _act(z, cfg, alpha=1.0):
     """relu, optional clamp to [0, clamp], and in the snap phase (cfg['ste']) a straight-through hard threshold:
     forward value is 0/1, gradient flows as if the activation were the soft value."""
@@ -139,10 +151,10 @@ def apply_rulenet_g(p, masks, cfg, x, feat_masks=None, opts=None):
     i = 1
     for lp, lm in zip(p['layers'], masks['layers']):
         delta, a = route_g(code, lp, lm, cfg, L_, T, alpha); attns.append(a)
-        code = topk_mask(_act(code + delta[..., :F], cfg, alpha), k); out = out + delta[..., F:]
+        code = _state(code + delta[..., :F], cfg, k, alpha); out = out + delta[..., F:]
         code = _mask_apply(code, None if feat_masks is None else feat_masks[i]); states.append(code); i += 1
         delta, hid = compute_g(code, lp, lm, cfg, L_, alpha); hids.append(hid)
-        code = topk_mask(_act(code + delta[..., :F], cfg, alpha), k); out = out + delta[..., F:]
+        code = _state(code + delta[..., :F], cfg, k, alpha); out = out + delta[..., F:]
         code = _mask_apply(code, None if feat_masks is None else feat_masks[i]); states.append(code); i += 1
     logits = out * p['out_scale'] + p['out_bias']
     if opts.get('return_internals'): return logits, states, {'attn': attns, 'hid': hids, 'out': out}

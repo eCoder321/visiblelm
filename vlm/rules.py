@@ -81,7 +81,7 @@ def execute_hard_g(bundle, X, binarize=True, hard_attn=True, keep_topk=True):
         if not keep_topk: return z
         thr = np.sort(z, -1)[..., -k][..., None]; return np.where((z >= thr) & (z > 0), z, 0.0)
     def binz(z): return (z > thr0).astype(np.float64) if binarize else z
-    def step_state(z): return topk(binz(act(z)))                              # same order as the model: act, threshold, top-k
+    def step_state(z): return binz(topk(act(z)))                              # same order as the model: act, top-k on soft values, threshold
     def grouped(code): cg = np.einsum('btf,fgv->btgv', code, Mv[:code.shape[-1]]); return cg, cg.sum(-1)
     def ungroup(dg, n): return np.einsum('btgv,fgv->btf', dg, Mv[:n])
     code = binz(act(np.asarray(p['emb'] * m['emb'])[X])); out = np.zeros((B, T, VOCAB))
