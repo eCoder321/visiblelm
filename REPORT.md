@@ -87,6 +87,26 @@ What the discrete program gets wrong: accuracy is 97% far from mode switches but
 and it assigns 0.04 probability mass to a switch where the truth is 0.10. Under test: more discrete capacity
 (256 rules, 32 booleans, k=24), a longer hard phase, and enforcing the state cap on pre-threshold values.
 
+### 3.5 Controls over 3 seeds
+
+Generalization (NLL; oracle floors: iid 0.62, held-out switch 0.00, held-out argument 0.32)
+
+| name | model | seeds | iid | shift_sw | shift_arg | acc_cpy2 | acc_cpy3 | acc_succ | long |
+|---|---|---|---|---|---|---|---|---|---|
+| ctrl_dense_sae | dense | 3 | 0.593 ±0.000 | 0.181 ±0.053 | 4.130 ±0.110 | 0.78 ±0.03 | 0.60 ±0.12 | 0.01 ±0.02 | 1.607 ±0.098 |
+| ctrl_bottleneck_v3 | bottleneck | 3 | 0.919 ±0.026 | 2.526 ±0.281 | 3.796 ±0.059 | 0.76 ±0.03 | 0.34 ±0.02 | 0.00 ±0.00 | 1.831 ±0.096 |
+| ctrl_named_neurons | bottleneck | 3 | 1.078 ±0.129 | 2.025 ±0.598 | 3.887 ±0.288 | 0.68 ±0.20 | 0.43 ±0.15 | 0.04 ±0.06 | 2.118 ±0.103 |
+
+Interpretability (completeness gap, magnitude gap, circuit sufficiency vs random, argmax kept, circuit size, clean fraction, description length)
+
+| name | compl | mag | suff | suff_rand | argmax_ok | circ | circ_clean | dl |
+|---|---|---|---|---|---|---|---|---|
+| ctrl_dense_sae | 0.003 ±0.001 | 3.066 ±0.128 | 0.58 ±0.02 | 0.01 ±0.02 | 0.39 ±0.05 | 4.7 ±0.5 | 0.32 ±0.04 | — |
+| ctrl_bottleneck_v3 | 0.000 ±0.000 | 1.522 ±0.218 | 0.02 ±0.25 | -0.30 ±0.34 | 0.16 ±0.07 | 6.5 ±0.4 | 0.08 ±0.02 | — |
+| ctrl_named_neurons | 0.000 ±0.000 | 2.347 ±0.111 | 0.02 ±0.11 | -0.66 ±0.11 | 0.16 ±0.05 | 11.2 ±1.6 | 0.02 ±0.01 | — |
+
+The previous design (bottleneck v3) loses to the null model on every interpretability metric on this testbed (lower sufficiency, lower argmax-kept, larger circuits, lower clean fraction), while also being worse on iid NLL and held-out switch generalization.
+
 ## 4. Changelog
 
 * 2026-09-12 — testbed, harness, four model families, null-model baseline, propositional rulenet diagnostics,
