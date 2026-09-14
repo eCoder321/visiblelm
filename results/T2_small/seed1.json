@@ -1,0 +1,281 @@
+{
+ "name": "T2_small",
+ "seed": 1,
+ "cfg": {
+  "model": "rulenet_g",
+  "n_val": 4,
+  "n_mode": 1,
+  "n_bool": 16,
+  "R": 128,
+  "heads": 3,
+  "layers": 2,
+  "k": 16,
+  "fan_in": 3,
+  "fan_out": 2,
+  "n_u": 2,
+  "n_a": 2,
+  "n_p": 4,
+  "emb_fan": 3,
+  "clamp": 1.0,
+  "ste_from": 0.45,
+  "ste_ramp": 0.2,
+  "prune_at": [
+   0.1,
+   0.17,
+   0.24,
+   0.31,
+   0.38
+  ],
+  "regrow_every": 50,
+  "regrow_frac": 0.3,
+  "regrow_until": 0.45,
+  "l1": 0.0001,
+  "l1_table": 1.0,
+  "steps": 6000,
+  "lr": 0.002,
+  "bs": 64,
+  "log_every": 500,
+  "T_max": 32,
+  "F": 108,
+  "ste": true
+ },
+ "history": [
+  {
+   "step": 0,
+   "train_nll": 3.2022557258605957,
+   "iid": 3.089449644088745
+  },
+  {
+   "step": 500,
+   "train_nll": 0.7746912240982056,
+   "iid": 0.7595310807228088
+  },
+  {
+   "step": 1000,
+   "train_nll": 0.6760129928588867,
+   "iid": 0.7002384662628174
+  },
+  {
+   "step": 1500,
+   "train_nll": 0.7504906058311462,
+   "iid": 0.7192975282669067
+  },
+  {
+   "step": 2000,
+   "train_nll": 0.9073569178581238,
+   "iid": 0.8184735178947449
+  },
+  {
+   "step": 2500,
+   "train_nll": 0.8811927437782288,
+   "iid": 0.8198716044425964
+  },
+  {
+   "step": 3000,
+   "train_nll": 0.7713009715080261,
+   "iid": 0.7588184475898743
+  },
+  {
+   "step": 3500,
+   "train_nll": 0.8967633843421936,
+   "iid": 0.9837093949317932
+  },
+  {
+   "step": 4000,
+   "train_nll": 1.457937240600586,
+   "iid": 1.4010107517242432
+  },
+  {
+   "step": 4500,
+   "train_nll": 1.5144331455230713,
+   "iid": 1.6182180643081665
+  },
+  {
+   "step": 5000,
+   "train_nll": 1.560348391532898,
+   "iid": 1.2274457216262817
+  },
+  {
+   "step": 5500,
+   "train_nll": 1.1459311246871948,
+   "iid": 1.153565764427185
+  },
+  {
+   "step": 5999,
+   "train_nll": 1.0746771097183228,
+   "iid": 1.1835588216781616
+  }
+ ],
+ "train_seconds": 2789.0401072502136,
+ "eval": {
+  "iid": {
+   "nll": 1.1835588216781616,
+   "oracle": 0.6166340136624466,
+   "acc_rule": 0.848
+  },
+  "shift": {
+   "nll": 2.302633047103882,
+   "oracle": 0.6531374998317959,
+   "nll_heldout": 3.487726926803589,
+   "oracle_heldout": 0.29445112006226276,
+   "nll_heldout_arg": 3.5733518600463867,
+   "oracle_heldout_arg": 0.3232919480534359,
+   "nll_heldout_sw": 2.662527084350586,
+   "oracle_heldout_sw": -0.0,
+   "acc_rule": 0.52445,
+   "acc_heldout": 0.30416312659303313,
+   "acc_heldout_rept": 0.47877358490566035,
+   "acc_heldout_succ": 0.008403361344537815,
+   "acc_heldout_pred": 0.0,
+   "acc_heldout_pls2": 0.0,
+   "acc_heldout_cpy2": 0.7111111111111111,
+   "acc_heldout_cpy3": 0.5948275862068966
+  },
+  "long": {
+   "nll": 1.917382001876831,
+   "oracle": 0.5303263790370106,
+   "nll_heldout": 3.642987012863159,
+   "oracle_heldout": 0.277697552141747,
+   "nll_heldout_arg": 3.7531533241271973,
+   "oracle_heldout_arg": 0.30477798719103083,
+   "nll_heldout_sw": 2.645770788192749,
+   "oracle_heldout_sw": -0.0,
+   "acc_rule": 0.6211071428571429,
+   "acc_heldout": 0.3053311793214863,
+   "acc_heldout_rept": 0.49606299212598426,
+   "acc_heldout_succ": 0.0036363636363636364,
+   "acc_heldout_pred": 0.003257328990228013,
+   "acc_heldout_pls2": 0.003289473684210526,
+   "acc_heldout_cpy2": 0.7848101265822784,
+   "acc_heldout_cpy3": 0.6793650793650794
+  }
+ },
+ "analysis": {
+  "main": {
+   "completeness_gap": 0.0,
+   "magnitude_audit": {
+    "nll": 1.1835588216781616,
+    "nll_binarized": 1.1835588216781616,
+    "gap": 0.0
+   },
+   "legibility": {
+    "state0": {
+     "n_live": 26,
+     "n_clean": 25,
+     "n_half_clean": 26,
+     "median_heldF1_live": 0.976609468460083,
+     "clean_mass_frac": 0.9655943512916565,
+     "clean_event_frac": 0.9655943314008564
+    },
+    "state1": {
+     "n_live": 50,
+     "n_clean": 30,
+     "n_half_clean": 49,
+     "median_heldF1_live": 0.8471344709396362,
+     "clean_mass_frac": 0.3934682607650757,
+     "clean_event_frac": 0.3934682532789021
+    },
+    "state2": {
+     "n_live": 77,
+     "n_clean": 26,
+     "n_half_clean": 59,
+     "median_heldF1_live": 0.6979166865348816,
+     "clean_mass_frac": 0.22756105661392212,
+     "clean_event_frac": 0.22756105296542975
+    },
+    "state3": {
+     "n_live": 77,
+     "n_clean": 26,
+     "n_half_clean": 61,
+     "median_heldF1_live": 0.7458212971687317,
+     "clean_mass_frac": 0.19669124484062195,
+     "clean_event_frac": 0.19669124390154433
+    },
+    "state4": {
+     "n_live": 77,
+     "n_clean": 26,
+     "n_half_clean": 61,
+     "median_heldF1_live": 0.7458212971687317,
+     "clean_mass_frac": 0.19669124484062195,
+     "clean_event_frac": 0.19669124390154433
+    },
+    "rules0": {
+     "n_live": 64,
+     "n_clean": 20,
+     "n_half_clean": 57,
+     "median_heldF1_live": 0.7006316184997559,
+     "clean_mass_frac": 0.06318819522857666,
+     "clean_event_frac": 0.0631881988852033
+    },
+    "rules1": {
+     "n_live": 45,
+     "n_clean": 4,
+     "n_half_clean": 37,
+     "median_heldF1_live": 0.6723557710647583,
+     "clean_mass_frac": 0.010168837383389473,
+     "clean_event_frac": 0.010168837733105143
+    }
+   },
+   "faithfulness_iid": {
+    "base": -1.1426656782627105,
+    "necessity": -4.31134986281395,
+    "sufficiency": -2.0326930403709413,
+    "random_same_size": -3.0858372867107393,
+    "all_ablated": -3.093222922086716,
+    "sufficiency_retained_frac": 0.5437061050495702,
+    "random_retained_frac": 0.0037864232897350195,
+    "sufficiency_argmax_ok": 0.175,
+    "circuit_size_median": 10.0,
+    "circuit_size_mean": 11.675,
+    "n_nodes_mean": 367.925,
+    "tau": 0.1,
+    "n_examples": 40,
+    "circuit_clean_frac": 0.4582441113490364
+   },
+   "faithfulness_shift": {
+    "base": -1.9110727101564406,
+    "necessity": -4.529430687427521,
+    "sufficiency": -2.170479807257652,
+    "random_same_size": -3.1104309618473054,
+    "all_ablated": -3.1158662140369415,
+    "sufficiency_retained_frac": 0.7846875034886134,
+    "random_retained_frac": 0.004511355823325666,
+    "sufficiency_argmax_ok": 0.15,
+    "circuit_size_median": 13.5,
+    "circuit_size_mean": 14.575,
+    "n_nodes_mean": 374.425,
+    "tau": 0.1,
+    "n_examples": 40,
+    "circuit_clean_frac": 0.45969125214408235
+   },
+   "rulebook": "=== embedding: token -> features\n   rept -> tok_mode=rept[mode=rept&is_mode_tok]:1.00, tok_mode=cpy3:0.88, b1:0.24\n   succ -> tok_mode=succ[mode=succ&is_mode_tok]:0.88, tok_mode=pred[mode=pred&is_mode_tok]:0.22, val2=10:0.45\n   pred -> tok_mode=pred[mode=pred&is_mode_tok]:1.00, val2=4:0.46, val2=15:0.01\n   pls2 -> tok_mode=pls2[mode=pls2&is_mode_tok]:0.59, val2=10:0.49, b9[mode=pls2&is_mode_tok]:0.85\n   cpy2 -> tok_mode=cpy2:0.49, val1=4[mode=cpy2&is_mode_tok]:0.56, mode0=cpy2[mode=cpy2&is_mode_tok]:0.50\n   cpy3 -> tok_mode=cpy3:0.51, val0=10:0.00, mode0=cpy3[mode=cpy3&is_mode_tok]:0.69\n      0 -> tok_mode=rept[mode=rept&is_mode_tok]:0.11, tok_content=0[cur=0]:0.73, val1=0:0.11\n      1 -> tok_content=1[cur=1]:1.00, val1=1:0.06, val3=1[cur=1]:0.52\n      2 -> tok_content=2[cur=2]:0.90, val1=2:0.11\n      3 -> tok_content=3[cur=3]:0.98, val1=3:0.00, val3=3:0.20\n      4 -> tok_content=4[cur=4]:0.74, val1=4[mode=cpy2&is_mode_tok]:0.29\n      5 -> tok_mode=rept[mode=rept&is_mode_tok]:0.03, tok_content=5[cur=5]:0.99, val1=9:0.23\n      6 -> tok_content=6[cur=6]:0.76, val3=6:0.27, b12:0.00\n      7 -> tok_content=7[cur=7]:0.99, val3=7:0.44\n      8 -> tok_content=8[cur=8]:0.83, val3=8:0.40\n      9 -> tok_mode=rept[mode=rept&is_mode_tok]:0.00, tok_content=9[cur=9]:1.00, val1=9:0.17\n     10 -> tok_content=10[cur=10]:0.73, val3=10:0.21\n     11 -> tok_content=11[cur=11]:1.00, val1=11:0.00, val3=11:0.31\n     12 -> tok_content=12[cur=12]:0.95, val3=12:0.20\n     13 -> tok_content=13[cur=13]:1.00, val3=13:0.39\n     14 -> tok_mode=rept[mode=rept&is_mode_tok]:0.12, tok_content=14[cur=14]:0.71, val1=14:0.15\n     15 -> tok_content=15[cur=15]:0.94, val3=15:0.35\n=== layer 0 : ROUTE\n  head 0: prefer distance [(1, 1.18), (2, 1.18), (5, 0.45)]\n    LOOK FOR: ['b1:+1.24', 'tok_mode:+0.71']\n    MATCH: ['(my tok_content == their tok_content):-0.01', '(my tok_content == their val2):+0.20']\n    COPY: ['their tok_mode -> my mode0:+1.75', 'their tok_content -> my val0:+1.18', 'their tok_content -> my b4:-0.02', 'their tok_content -> my b10:+1.00']\n  head 1: prefer distance [(3, 0.5), (2, 0.33), (1, 0.18)]\n    LOOK FOR: ['tok_content:-2.93', 'mode0:-0.29']\n    MATCH: ['(my tok_mode == their mode0):-0.18', '(my tok_content == their tok_content):-0.16']\n    COPY: ['their tok_mode -> my mode0:+2.88', 'their tok_content -> my b4:+0.23', 'their val1 -> my b4:+0.70', 'their mode0 -> my b4:+1.30']\n  head 2: prefer distance [(2, 0.92), (4, 0.78), (1, 0.77)]\n    LOOK FOR: ['tok_mode:+0.60', 'tok_content:+0.20']\n    MATCH: ['(my tok_content == their tok_content):-0.59', '(my mode0 == their tok_mode):+0.00']\n    COPY: ['their tok_mode -> my mode0:+1.39', 'their tok_mode -> my b11:+1.11', 'their tok_mode -> my b15:+0.96', 'their tok_content -> my b4:+0.01']\n=== layer 0 : RULES\n  L0R0   rule: IF +0.09*tok_content=13[cur=13] + +0.11*mode0=pls2 + -0.00*b8 -0.06 > 0 THEN val0=9 +0.00; mode0=pls2 -0.00; b10 <- b4 (copy) x+0.00\n  L0R1   rule[mode=rept:0.61]: IF +0.17*val0=1[prev=1] + -1.02*b2 + +0.66*b11 +0.15 > 0 THEN b4 +0.36; out_content=2 -0.07; tok_content <- table(tok_content) x-0.62 [15 non-identity entries: ]\n  L0R2   rule[cur=15:0.97]: IF -0.00*tok_content=13[cur=13] + +0.76*tok_content=15[cur=15] + -0.00*b14 +0.14 > 0 THEN val0=11 -0.00; val0=14 +0.37; b14 <- val0 (copy) x-0.00\n  L0R3   rule: IF -0.02*tok_content=1[cur=1] + -0.40*b4 + -0.11*b15 +0.23 > 0 THEN val1=12 +0.33; val2=1 -0.00; b0 <- b2 (copy) x+0.09\n  L0R4   rule: IF -0.00*tok_mode=rept[mode=rept&is_mode_tok] + +0.00*tok_mode=succ[mode=succ&is_mode_tok] + +0.00*tok_mode=pred[mode=pred&is_mode_tok] -0.01 > 0 THEN tok_mode=rept -0.00; tok_mode=succ +0.00\n  L0R5   rule: IF +0.00*tok_content=7[cur=7] + +0.22*mode0=pls2 + +0.00*b10 -0.02 > 0 THEN val3=14 -0.00; mode0=pls2 -0.12; b11 <- tok_mode (copy) x+0.00\n  L0R6   rule: IF -0.00*tok_mode=pred[mode=pred&is_mode_tok] + +0.27*b10 + +0.14*b13 +0.19 > 0 THEN tok_mode=rept -0.00; out_content=9 +0.13; val2 <- val0 (copy) x+0.24\n  L0R7   rule[dist_mode>=6:0.70]: IF +0.81*b2 + -0.00*b8 + -1.02*b15 +0.50 > 0 THEN val0=11 +0.01; out_content=9 -0.08; out_content <- table(tok_content) x-1.99 [161 non-identity entries: 9->5]\n  L0R8   rule[mode=rept&is_mode_tok:1.00]: IF +1.10*tok_mode=rept[mode=rept&is_mode_tok] + -0.00*b8 + +0.57*b11 -0.10 > 0 THEN val0=11 +0.08; b10 -0.79; b0 <- b13 (copy) x-0.00\n  L0R9   rule[mode=rept:0.68]: IF +0.64*mode0=cpy3[mode=cpy3&is_mode_tok] + +1.04*b4 + +0.02*b10 +0.34 > 0 THEN val1=5 +0.29; val3=1 -0.31; b13 <- mode0 (copy) x-0.00\n  L0R10  rule[dist_mode>=6:0.70]: IF +0.50*tok_content=0[cur=0] + +0.00*b8 + -0.64*b15 +0.53 > 0 THEN val3=1 -0.04; val3=14 +0.28; val1 <- table(tok_content) x-2.30 [50 non-identity entries: ]\n  L0R11  rule[mode=rept:0.61]: IF -0.14*b2 + +0.05*b10 + +1.06*b11 +0.06 > 0 THEN tok_content=8 -0.03; val1=5 -0.66; tok_content <- tok_content (copy) x+0.08\n  L0R12  rule: IF +0.00*b8 + +0.00*b13 + +0.04*b15 +0.03 > 0 THEN val3=14 -0.00; b8 +0.00\n  L0R13  rule[dist_mode>=6:0.67]: IF +0.02*val0=1[prev=1] + +0.16*mode0=succ + +0.50*b10 +0.50 > 0 THEN val1=3 +0.21; val3=5 +0.27; out_content <- table(val0) x+1.07 [155 non-identity entries: 5->9, 14->0]\n  L0R14  rule: IF +0.00*tok_content=8[cur=8] + +0.00*b10 + +0.20*b15 +0.04 > 0 THEN val2=8 +0.00; b2 +0.14; b2 <- val0 (copy) x-0.00\n  L0R15  rule: IF -0.00*tok_content=2[cur=2] + -0.02*b10 + +0.34*b13 -0.05 > 0 THEN tok_mode=rept +0.00; val1=3 +0.03\n  L0R16  rule[mode=cpy2&is_mode_tok:1.00]: IF +1.25*mode0=cpy2[mode=cpy2&is_mode_tok] + +0.32*b4 + -0.15*b10 +0.06 > 0 THEN b11 -0.27; out_mode=pred -0.80; val2 <- table(val0) x+0.54 [2 non-identity entries: ]\n  L0R17  rule: IF +0.00*tok_content=13[cur=13] + -0.00*val0=14 + +0.00*val0=15 -0.00 > 0 THEN tok_mode=rept -0.00; val1=12 +0.00\n  L0R18  rule[mode=pls2&cur=9:0.46]: IF +0.55*tok_content=9[cur=9] + +0.24*mode0=pls2 + +0.00*b10 -0.16 > 0 THEN val0=3 -0.00; val0=11 +0.46; val1 <- tok_content (copy) x-0.00\n  L0R19  rule: IF -0.00*tok_content=6[cur=6] + +0.28*b2 + +0.00*b8 -0.01 > 0 THEN tok_mode=rept -0.00; out_mode=succ +0.09; tok_content <- tok_content (copy) x-0.00\n  L0R20  rule[cur=12:0.97]: IF +0.56*tok_content=12[cur=12] + +0.25*b2 + +0.00*b8 +0.06 > 0 THEN val0=11 +0.02; out_mode=succ +0.41; b4 <- val0 (copy) x-0.00\n  L0R21  rule: IF -0.00*val0=1[prev=1] + +0.32*b8 + +0.00*b10 -0.10 > 0 THEN out_content=4 +0.00; out_content=13 +0.00; b8 <- tok_content (copy) x+0.00\n  L0R22  rule: IF +0.37*tok_content=6[cur=6] + +0.35*tok_content=13[cur=13] + -0.00*b10 +0.07 > 0 THEN val0=14 -0.00; val3=12 +0.25\n  L0R23  rule[dist_mode>=6:0.68]: IF -0.53*tok_mode=succ[mode=succ&is_mode_tok] + -0.53*tok_mode=pred[mode=pred&is_mode_tok] + -0.00*val0=1[prev=1] +0.53 > 0 THEN val0=11 +0.01; out_mode=rept +0.50; val0 <- table(val0) x-2.59 [19 non-identity entries: ]\n  L0R24  rule[mode=pls2:0.52]: IF +0.46*mode0=pls2 + -0.00*b8 + +0.20*b11 -0.02 > 0 THEN val3=5 -0.14; val3=14 +0.00; b3 <- tok_mode (copy) x+0.00\n  L0R25  rule: IF -0.00*tok_mode=rept[mode=rept&is_mode_tok] + +0.00*tok_mode=succ[mode=succ&is_mode_tok] + +0.00*tok_mode=pred[mode=pred&is_mode_tok] -0.04 > 0 THEN tok_mode=rept +0.00; tok_mode=succ +0.00; tok_mode <- tok_mode (copy) x-0.00\n  L0R26  rule: IF +0.00*tok_mode=rept[mode=rept&is_mode_tok] + -0.00*tok_mode=succ[mode=succ&is_mode_tok] + +0.00*tok_mode=pred[mode=pred&is_mode_tok] -0.03 > 0 THEN tok_mode=rept -0.00; tok_mode=succ +0.00\n  L0R27  rule: IF +0.45*tok_content=13[cur=13] + +0.00*b10 + +0.00*b13 -0.01 > 0 THEN val0=14 +0.44; val3=12 +0.00; val3 <- tok_content (copy) x+0.00\n  L0R28  rule[dist_mode=3:0.46]: IF +0.91*b4 + -0.00*b8 + -0.23*b12 +0.34 > 0 THEN val1=13 +0.45; val3=0 -0.25; out_content <- table(val0) x+0.96 [19 non-identity entries: ]\n  L0R29  rule: IF +0.27*mode0=cpy3[mode=cpy3&is_mode_tok] + -0.00*b8 + +0.00*b15 +0.05 > 0 THEN val0=11 +0.07; val0=14 -0.21; b5 <- b4 (copy) x-0.00\n  L0R30  rule: IF +0.00*tok_content=13[cur=13] + -0.00*b8 + +0.00*b12 +0.02 > 0 THEN val1=4 +0.00; val2=9 +0.00; b14 <- b2 (copy) x-0.00\n  L0R31  rule[dist_mode=3:0.46]: IF -0.83*mode0=pls2 + +0.53*b4 + -0.00*b8 +0.03 > 0 THEN val0=1 -0.77; val0=11 +0.24; b11 <- tok_mode (copy) x+0.00\n  L0R32  rule: IF +0.34*tok_content=4[cur=4] + +0.23*tok_content=7[cur=7] + +0.00*b10 -0.01 > 0 THEN val3=7 +0.10; mode0=pls2 -0.00; b7 <- tok_mode (copy) x-0.00\n  L0R33  rule: IF -0.00*tok_mode=succ[mode=succ&is_mode_tok] + -0.00*tok_content=12[cur=12] + +0.00*b2 -0.00 > 0 THEN tok_mode=rept -0.00; b8 -0.00\n  L0R34  rule[dist_mode=3:0.46]: IF +0.00*tok_content=13[cur=13] + +0.50*b4 + -0.03*b10 +0.13 > 0 THEN val1=4 -0.23; val3=7 -0.30\n  L0R35  rule[mode=rept:0.61]: IF +0.93*tok_mode=cpy2 + -0.00*b8 + +1.14*b11 -0.05 > 0 THEN b4 +0.69; b11 -0.71; b13 <- b4 (copy) x+0.00\n  L0R36  rule[mode=succ:0.65]: IF -0.63*tok_content=12[cur=12] + +1.32*mode0=succ + +0.00*b8 +0.18 > 0 THEN tok_mode=cpy2 +1.36; val2=11 +0.02; b11 <- mode0 (copy) x-0.00\n  L0R37  rule: IF +0.14*tok_mode=succ[mode=succ&is_mode_tok] + +0.00*val0=1[prev=1] + -0.00*b4 -0.02 > 0 THEN val0=10 +0.00; val1=2 +0.14; b12 <- mode0 (copy) x+0.00\n  L0R38  rule[cur=7:0.51]: IF +0.45*tok_content=5[cur=5] + +0.43*tok_content=7[cur=7] + +0.43*tok_content=13[cur=13] +0.07 > 0 THEN val3=7 +0.00; out_mode=pls2 +0.43\n  L0R39  rule[cur=14:0.70]: IF +0.42*tok_content=10[cur=10] + +0.72*tok_content=14[cur=14] + -0.08*val0=13 +0.08 > 0 THEN val1=4 +0.01; out_mode=pls2 -0.88; b11 <- mode0 (copy) x+0.00\n  L0R40  rule[mode=rept:0.85]: IF +1.09*mode0=rept[mode=rept] + -0.60*mode0=pls2 + +0.00*b8 +0.46 > 0 THEN val1=4 +0.62; val1=13 +0.31\n  L0R41  rule[mode=rept:0.61]: IF -0.13*b9[mode=pls2&is_mode_tok] + +0.19*b10 + +0.60*b15 +0.16 > 0 THEN val2=2 +0.01; out_content=9 -0.28; val2 <- table(val0) x+0.28 [2 non-identity entries: ]\n  L0R42  rule: IF -0.00*tok_content=3[cur=3] + +0.05*b2 + -0.00*b8 -0.08 > 0 THEN tok_mode=rept +0.00; mode0=cpy2 +0.00; out_content <- tok_content (copy) x-0.00\n  L0R43  rule[mode=pls2&is_mode_tok:1.00]: IF +1.02*tok_mode=pls2[mode=pls2&is_mode_tok] + +0.29*b4 + -0.25*b10 -0.04 > 0 THEN val0=11 -0.38; val1=13 -0.32; b6 <- val2 (copy) x+0.13\n  L0R44  rule[dist_mode>=6:0.76]: IF -0.39*mode0=succ + -0.00*b8 + +0.33*b10 +0.17 > 0 THEN val0=11 +0.04; val2=13 -0.18; b7 <- b15 (copy) x-0.00\n  L0R45  rule[dist_mode>=6:0.69]: IF +0.67*mode0=succ + +0.08*b10 + +0.81*b11 +0.42 > 0 THEN val0=14 -0.08; out_mode=cpy2 -1.03\n  L0R46  rule[dist_mode>=6:0.76]: IF +0.34*b8 + +0.26*b10 + +0.07*b14 +0.31 > 0 THEN val0=11 +0.10; val1=13 +0.45\n  L0R47  rule[mode=rept:0.73]: IF +0.89*mode0=cpy3[mode=cpy3&is_mode_tok] + +0.00*b8 + -0.08*b13 +0.00 > 0 THEN val0=11 +0.12; out_mode=rept +0.36; val2 <- table(val0) x-0.38 [2 non-identity entries: ]\n  L0R48  rule[mode=rept:0.62]: IF +0.00*mode0=rept[mode=rept] + -0.37*mode0=cpy2[mode=cpy2&is_mode_tok] + +0.98*b15 -0.46 > 0 THEN val2=1 -0.00; b6 -1.40; b7 <- b13 (copy) x-0.00\n  L0R49  rule[mode=pred:0.65]: IF -0.09*tok_content=1[cur=1] + +1.51*mode0=pred + +0.00*b8 +0.28 > 0 THEN val1=2 +1.09; mode0=pred +0.34\n  L0R50  rule[cur=15:0.97]: IF +0.55*tok_content=15[cur=15] + +0.01*b10 + -0.00*b13 +0.04 > 0 THEN val0=11 -0.01; out_mode=pls2 +0.39\n  L0R51  rule: IF -0.00*tok_content=2[cur=2] + -0.00*tok_content=9[cur=9] + +0.00*b8 -0.02 > 0 THEN tok_mode=rept -0.00; mode0=pls2 +0.00; out_content <- tok_content (copy) x+0.00\n  L0R52  rule: IF +0.00*tok_mode=rept[mode=rept&is_mode_tok] + +0.00*tok_mode=succ[mode=succ&is_mode_tok] + -0.00*tok_mode=pred[mode=pred&is_mode_tok] -0.02 > 0 THEN tok_mode=rept -0.00; tok_mode=succ -0.00; tok_mode <- tok_mode (copy) x-0.00\n  L0R53  rule[cur=15:0.97]: IF +0.59*tok_content=15[cur=15] + -0.13*b4 + +0.08*b10 +0.05 > 0 THEN tok_mode=rept +0.34; val1=5 +0.34; b10 <- val3 (copy) x+0.00\n  L0R54  rule[dist_mode>=6:0.76]: IF +0.00*tok_mode=pred[mode=pred&is_mode_tok] + +0.30*b10 + +0.36*b14 +0.27 > 0 THEN val3=2 +0.00; mode0=cpy3 -0.21; out_content <- table(tok_content) x-0.86 [98 non-identity entries: ]\n  L0R55  rule[dist_mode=3:0.46]: IF +0.00*tok_content=7[cur=7] + +0.02*tok_content=13[cur=13] + +0.20*b4 +0.38 > 0 THEN val1=13 +0.14; val2=7 -0.13; b6 <- b8 (copy) x+0.00\n  L0R56  rule[mode=succ:0.65]: IF -0.06*tok_content=1[cur=1] + +0.84*mode0=succ + -0.00*b8 +0.30 > 0 THEN val0=14 +0.00; val3=5 +0.94; val2 <- val2 (copy) x+0.00\n  L0R57  rule[dist_mode>=6:0.76]: IF +0.00*tok_content=13[cur=13] + +0.06*b8 + +0.48*b10 +0.04 > 0 THEN val0=11 +0.11; val3=12 +0.38\n  L0R58  rule: IF +0.43*mode0=pls2 + -0.41*b4 + -0.00*b8 +0.07 > 0 THEN val1=4 -0.02; val2=7 +0.35; b2 <- b10 (copy) x-0.00\n  L0R59  rule[mode=rept:0.61]: IF +0.28*mode0=rept[mode=rept] + +0.43*b11 + +0.70*b15 -0.03 > 0 THEN val0=14 -0.12; val2=1 +0.00; val3 <- table(tok_content) x-0.33 [3 non-identity entries: ]\n  L0R60  rule: IF +0.26*tok_content=1[cur=1] + +0.50*tok_content=4[cur=4] + +0.00*b8 -0.00 > 0 THEN out_mode=succ -0.39; out_content=4 +0.09; b11 <- b6 (copy) x-0.00\n  L0R61  rule[dist_mode>=6:0.67]: IF -0.00*tok_content=13[cur=13] + +0.00*b2 + +0.26*b11 +0.52 > 0 THEN tok_content=8 +0.07; b6 -0.56; b4 <- val0 (copy) x+0.00\n  L0R62  rule: IF -0.00*tok_content=0[cur=0] + +0.00*b10 + +0.00*b13 -0.08 > 0 THEN tok_mode=rept -0.00; val1=3 +0.00\n  L0R63  rule[mode=pred:0.65]: IF +0.00*tok_content=13[cur=13] + +1.04*mode0=pred + +0.00*b8 +0.27 > 0 THEN mode0=pred +0.40; mode0=pls2 +0.15; b5 <- b11 (copy) x+0.00\n  L0R64  rule: IF +0.14*tok_content=2[cur=2] + +0.00*tok_content=15[cur=15] + +0.00*b8 +0.25 > 0 THEN val0=11 +0.02; mode0=pred +0.08; b11 <- b14 (copy) x+0.00\n  L0R65  rule: IF +0.37*tok_content=1[cur=1] + -0.00*val0=3[prev=3] + +0.00*mode0=succ -0.00 > 0 THEN tok_mode=rept -0.00; val1=2 -0.05\n  L0R66  rule[cur=12:0.97]: IF +0.13*tok_content=2[cur=2] + +0.40*tok_content=12[cur=12] + +0.08*b8 +0.15 > 0 THEN val0=11 +0.02; val1=5 +0.29; b7 <- b11 (copy) x-0.00\n  L0R67  rule: IF -0.00*tok_mode=rept[mode=rept&is_mode_tok] + +0.00*tok_content=15[cur=15] + +0.00*b8 -0.08 > 0 THEN tok_mode=rept +0.00; val0=1 +0.00; b4 <- val1 (copy) x+0.00\n  L0R68  rule: IF +0.00*tok_mode=rept[mode=rept&is_mode_tok] + +0.00*tok_mode=succ[mode=succ&is_mode_tok] + +0.00*tok_mode=pred[mode=pred&is_mode_tok] -0.03 > 0 THEN tok_mode=rept +0.00; tok_mode=succ +0.00\n  L0R69  rule: IF +0.00*tok_content=14[cur=14] + +0.27*b2 + +0.00*b8 -0.03 > 0 THEN tok_mode=rept -0.00; val1=4 +0.15; out_content <- tok_content (copy) x+0.00\n  L0R70  rule: IF +0.00*mode0=cpy3[mode=cpy3&is_mode_tok] + +0.15*b2 + +0.00*b8 -0.08 > 0 THEN tok_mode=rept -0.00; out_mode=rept +0.03\n  L0R71  rule: IF +0.00*tok_content=1[cur=1] + -0.00*tok_content=4[cur=4] + +0.00*b8 -0.03 > 0 THEN tok_mode=rept +0.00; val3=7 +0.00; b15 <- tok_content (copy) x-0.00\n  L0R72  rule: IF -0.00*tok_content=13[cur=13] + -0.00*val0=13 + +0.00*b2 -0.03 > 0 THEN tok_mode=rept -0.00; val3=12 +0.00; b15 <- b9 (copy) x+0.00\n  L0R73  rule[mode=pls2&is_mode_tok:1.00]: IF +0.90*tok_mode=pls2[mode=pls2&is_mode_tok] + -0.00*mode0=cpy2[mode=cpy2&is_mode_tok] + -0.37*b2 -0.01 > 0 THEN tok_content=9 +0.06; b7 +0.90; tok_content <- table(val0) x-4.79 [13 non-identity entries: ]\n  L0R74  rule: IF -0.13*mode0=pred + +0.47*b2 + +0.10*b10 +0.31 > 0 THEN tok_mode=rept +0.00; val1=5 +0.45; b6 <- mode0 (copy) x-0.00\n  L0R75  rule: IF +0.96*mode0=cpy2[mode=cpy2&is_mode_tok] + -0.54*mode0=cpy3[mode=cpy3&is_mode_tok] + +0.00*b8 -0.49 > 0 THEN b6 +1.07; b11 +0.32; val2 <- tok_content (copy) x-0.07\n  L0R76  rule[dist_mode>=6:0.76]: IF +0.00*b4 + +0.00*b8 + +0.40*b10 +0.12 > 0 THEN val1=5 +0.42; b8 -0.00; b4 <- tok_content (copy) x+0.00\n  L0R77  rule: IF -0.00*tok_content=0[cur=0] + -0.00*tok_content=11[cur=11] + -0.00*mode0=pred -0.01 > 0 THEN tok_mode=rept -0.00; out_content=15 -0.00; tok_content <- val0 (copy) x+0.00\n  L0R78  rule: IF +0.00*val0=1[prev=1] + +1.81*val2=10 + -0.04*b10 +0.02 > 0 THEN val0=10 +0.48; val1=5 -0.96; out_content <- table(val0) x-4.22 [26 non-identity entries: ]\n  L0R79  rule[cur=15&prev=9:1.00]: IF +0.52*tok_content=15[cur=15] + +0.31*val0=9 + -0.00*b10 -0.20 > 0 THEN val0=1 +0.60; val0=11 -0.00; b3 <- val0 (copy) x-0.00\n  L0R80  rule: IF -0.00*tok_content=2[cur=2] + +0.00*tok_content=8[cur=8] + +0.62*mode0=pred -0.24 > 0 THEN mode0=pred -0.00; b2 -0.20; b15 <- b15 (copy) x-0.00\n  L0R81  rule: IF +0.06*tok_content=15[cur=15] + -0.00*b4 + +0.00*b10 -0.07 > 0 THEN val0=1 +0.24; val3=5 -0.00\n  L0R82  rule: IF +0.00*tok_mode=rept[mode=rept&is_mode_tok] + -0.00*tok_content=5[cur=5] + +0.00*b10 -0.05 > 0 THEN tok_mode=rept +0.00; tok_mode=succ +0.00\n  L0R83  rule[mode=rept:0.61]: IF +0.05*tok_content=6[cur=6] + +0.00*val0=5 + +0.82*b11 +0.42 > 0 THEN tok_content=8 -0.02; mode0=cpy3 -0.96; b3 <- tok_content (copy) x+0.00\n  L0R84  rule[cur=2:0.98]: IF +0.65*tok_content=2[cur=2] + +0.00*tok_content=10[cur=10] + -0.00*b8 -0.07 > 0 THEN val1=3 +0.33; val3=2 +0.00; b5 <- b15 (copy) x-0.00\n  L0R85  rule[cur=2:0.98]: IF +0.65*tok_content=2[cur=2] + -0.00*tok_content=12[cur=12] + +0.22*b8 +0.10 > 0 THEN val3=0 +0.50; val3=12 -0.13\n  L0R86  rule: IF +0.18*tok_content=7[cur=7] + -0.00*tok_content=12[cur=12] + -0.00*b10 +0.09 > 0 THEN val2=13 +0.00; val3=7 +0.00; val2 <- val0 (copy) x-0.00\n  L0R87  rule[dist_mode>=6:0.76]: IF +0.19*b2 + +0.00*b8 + +0.76*b10 +0.15 > 0 THEN val3=1 +0.24; out_mode=rept +0.59\n  L0R88  rule: IF -0.00*tok_content=3[cur=3] + +0.14*tok_content=7[cur=7] + +0.18*b10 +0.15 > 0 THEN tok_mode=rept +0.00; val2=9 +0.04\n  L0R89  rule[mode=pls2:0.49]: IF +0.44*tok_mode=pred[mode=pred&is_mode_tok] + -0.00*tok_content=12[cur=12] + +0.75*mode0=pls2 +0.07 > 0 THEN val3=14 -0.00; b2 +0.98\n  L0R90  rule[dist_mode>=6:0.67]: IF +0.36*tok_mode=cpy2 + +1.37*tok_mode=cpy3 + -0.16*mode0=cpy3[mode=cpy3&is_mode_tok] +0.70 > 0 THEN val0=11 -0.03; b11 +1.48; b12 <- val1 (copy) x+0.00\n  L0R91  rule: IF +1.47*mode0=pls2 + +0.24*b10 + -2.17*b11 +0.13 > 0 THEN val0=3 +0.48; val3=14 -0.00; out_content <- table(tok_content) x-3.80 [39 non-identity entries: ]\n  L0R92  rule: IF -0.00*tok_mode=rept[mode=rept&is_mode_tok] + +0.00*tok_mode=succ[mode=succ&is_mode_tok] + +0.00*val0=1[prev=1] -0.06 > 0 THEN tok_mode=rept +0.00; tok_mode=succ +0.00; tok_content <- tok_content (copy) x+0.00\n  L0R93  rule[dist_mode>=6:0.67]: IF +0.49*b4 + +0.17*b10 + +0.00*b13 +0.51 > 0 THEN tok_mode=cpy3 +0.22; val1=13 +0.12\n  L0R94  rule: IF +0.00*tok_content=1[cur=1] + +0.00*b8 + +0.10*b10 -0.02 > 0 THEN val3=2 -0.00; out_content=7 -0.05; out_content <- val2 (copy) x-0.00\n  L0R95  rule: IF +0.09*mode0=cpy3[mode=cpy3&is_mode_tok] + +0.06*b2 + +0.00*b10 -0.01 > 0 THEN tok_mode=rept -0.00; val1=9 +0.00; val2 <- tok_content (copy) x+0.00\n  L0R96  rule: IF -0.04*tok_content=0[cur=0] + +0.37*b8 + +0.00*b10 +0.04 > 0 THEN val0=11 +0.00; val0=14 +0.06\n  L0R97  rule[dist_mode=3:0.30]: IF +0.63*b4 + +0.17*b10 + -0.70*b11 +0.13 > 0 THEN val3=12 -0.05; mode0=pred +0.00; out_content <- table(val0) x+1.00 [18 non-identity entries: ]\n  L0R98  rule: IF -0.00*tok_content=13[cur=13] + -0.00*b11 + +0.11*b15 +0.07 > 0 THEN val2=1 +0.00; b7 +0.14; b6 <- tok_content (copy) x+0.00\n  L0R99  rule: IF -0.00*tok_content=0[cur=0] + +0.34*mode0=succ + -0.00*b8 -0.05 > 0 THEN tok_mode=rept -0.00; val2=13 +0.16; b4 <- b12 (copy) x+0.00\n  L0R100 rule[mode=pls2&cur=8:0.82]: IF +0.50*tok_content=8[cur=8] + +0.19*mode0=pls2 + +0.00*b8 -0.08 > 0 THEN val2=10 +0.25; out_content=12 +0.00\n  L0R101 rule[cur=3:0.84]: IF +0.65*tok_content=3[cur=3] + +0.40*tok_content=5[cur=5] + -0.01*b10 +0.10 > 0 THEN val0=11 +0.00; out_mode=pls2 +0.51; out_content <- tok_content (copy) x+0.01\n  L0R102 rule: IF +0.24*b2 + +0.42*b8 + -0.00*b10 -0.00 > 0 THEN val0=11 +0.00; out_mode=pred +0.12; val2 <- val1 (copy) x+0.00\n  L0R103 rule: IF +0.00*mode0=cpy2[mode=cpy2&is_mode_tok] + -0.00*b4 + +0.00*b12 -0.03 > 0 THEN tok_mode=rept +0.00; out_content=14 -0.00\n  L0R104 rule: IF +0.00*tok_mode=rept[mode=rept&is_mode_tok] + -0.00*tok_mode=succ[mode=succ&is_mode_tok] + +0.00*tok_mode=pred[mode=pred&is_mode_tok] -0.04 > 0 THEN tok_mode=rept +0.00; tok_mode=succ +0.00; tok_mode <- tok_mode (copy) x-0.00\n  L0R105 rule: IF +0.00*tok_mode=cpy2 + +0.05*b4 + -0.00*b8 +0.17 > 0 THEN val0=11 -0.00; val3=14 -0.12; b11 <- val1 (copy) x-0.00\n  L0R106 rule[cur=4:0.97]: IF +0.66*tok_content=4[cur=4] + +0.21*tok_content=13[cur=13] + -0.00*b8 -0.04 > 0 THEN val3=12 +0.03; out_content=4 +0.11\n  L0R107 rule[mode=rept:0.68]: IF +0.67*mode0=cpy3[mode=cpy3&is_mode_tok] + +1.23*b4 + +0.02*b10 +0.31 > 0 THEN val0=11 +0.22; val1=5 +0.41; val3 <- table(val0) x-1.10 [5 non-identity entries: ]\n  L0R108 rule: IF +0.09*tok_content=9[cur=9] + -0.00*val0=1[prev=1] + +0.45*b2 +0.21 > 0 THEN val0=15 -0.00; out_mode=pred +0.13\n  L0R109 rule: IF +0.00*tok_content=9[cur=9] + -0.00*b2 + -0.00*b8 +0.08 > 0 THEN tok_mode=rept -0.00; b4 +0.00\n  L0R110 rule: IF -0.00*tok_content=6[cur=6] + -0.00*mode0=pls2 + -0.00*b4 -0.06 > 0 THEN tok_mode=rept +0.00; val0=3 -0.00; b15 <- val0 (copy) x-0.00\n  L0R111 rule[dist_mode>=6:0.76]: IF -0.18*mode0=pred + +0.00*b8 + +0.44*b10 +0.12 > 0 THEN tok_mode=cpy2 +0.36; val0=11 +0.08\n  L0R112 rule: IF +0.19*tok_content=7[cur=7] + +0.03*b10 + -0.00*b13 +0.22 > 0 THEN tok_mode=rept -0.00; val1=5 +0.35; b3 <- tok_mode (copy) x+0.00\n  L0R113 rule[dist_mode>=6:0.76]: IF -0.04*tok_content=5[cur=5] + +0.57*b2 + +0.51*b10 +0.50 > 0 THEN val0=11 -0.02; out_mode=succ +0.70; val3 <- table(val0) x-1.28 [12 non-identity entries: ]\n  L0R114 rule[mode=rept:0.81]: IF +0.91*mode0=rept[mode=rept] + +1.26*mode0=succ + +0.32*b10 +0.16 > 0 THEN val1=12 +0.96; val2=1 -0.01; val2 <- table(tok_content) x+0.51 [4 non-identity entries: ]\n  L0R115 rule[cur=11:0.97]: IF +0.69*tok_content=11[cur=11] + -0.10*b4 + +0.00*b8 -0.00 > 0 THEN tok_mode=rept +0.24; out_content=13 +0.53; out_content <- val2 (copy) x+0.00\n  L0R116 rule[mode=rept:0.61]: IF +0.62*tok_mode=pred[mode=pred&is_mode_tok] + -0.00*val0=9 + +0.57*b11 +0.09 > 0 THEN val0=10 +0.10; val1=3 -0.31; b4 <- val2 (copy) x+0.47\n  L0R117 rule[cur=5:0.95]: IF +0.46*tok_content=5[cur=5] + -0.07*val0=5 + -0.25*b4 +0.16 > 0 THEN val0=4 -0.00; val3=7 +0.50; b6 <- b15 (copy) x-0.00\n  L0R118 rule: IF +0.06*b2 + -0.00*b8 + -0.00*b10 +0.11 > 0 THEN tok_mode=rept +0.00; b4 -0.26; out_content <- tok_content (copy) x-0.00\n  L0R119 rule[dist_mode>=6:0.76]: IF +0.64*b2 + -0.00*b8 + +0.62*b10 +0.26 > 0 THEN val0=11 +0.11; b10 +0.51\n  L0R120 rule[dist_mode>=6:0.69]: IF -1.08*mode0=rept[mode=rept] + +0.00*b8 + +0.71*b10 +0.50 > 0 THEN val0=11 +0.01; val1=5 +0.36; val2 <- table(tok_content) x-1.96 [50 non-identity entries: ]\n  L0R121 rule: IF +0.25*tok_content=11[cur=11] + +0.27*tok_content=13[cur=13] + -0.00*b8 +0.01 > 0 THEN tok_mode=rept +0.00; val0=3 +0.21\n  L0R122 rule: IF +0.51*tok_content=1[cur=1] + +0.00*mode0=succ + +0.00*b10 -0.13 > 0 THEN val1=2 +0.08; val3=1 +0.11; b3 <- b8 (copy) x+0.00\n  L0R123 rule: IF +0.20*b8 + +0.00*b10 + +0.00*b15 -0.09 > 0 THEN val0=11 +0.00; val2=13 +0.00; out_content <- tok_content (copy) x+0.00\n  L0R124 rule: IF +0.11*b2 + +0.00*b8 + +0.00*b13 -0.03 > 0 THEN tok_mode=rept -0.00; out_mode=cpy2 +0.13; b3 <- b13 (copy) x+0.00\n  L0R125 rule[mode=rept:0.58]: IF +0.11*tok_content=15[cur=15] + -0.10*b10 + +0.47*b15 +0.11 > 0 THEN tok_mode=rept -0.13; val1=4 -0.28\n  L0R126 rule: IF +0.11*mode0=succ + +0.21*b8 + +0.00*b10 -0.03 > 0 THEN val2=13 +0.11; val3=2 -0.00; val0 <- val2 (copy) x-0.00\n  L0R127 rule[cur=4:0.97]: IF +0.64*tok_content=4[cur=4] + +0.28*tok_content=6[cur=6] + -0.00*b8 +0.07 > 0 THEN val3=2 +0.00; val3=7 +0.42; b6 <- mode0 (copy) x+0.00\n=== layer 1 : ROUTE\n  head 0: prefer distance [(2, 1.61), (3, 1.02), (6, 0.7)]\n    LOOK FOR: ['tok_mode:-0.88', 'val3:+0.14']\n    MATCH: ['(my val1 == their val1):-0.15', '(my val3 == their val3):-0.73']\n    COPY: ['their tok_content -> my val2:+0.50', 'their val0 -> my val0:-0.24', 'their b10 -> my b11:-0.29', 'their b11 -> my b11:+0.51']\n  head 1: prefer distance [(1, 1.29), (3, 1.14), (5, 0.97)]\n    LOOK FOR: ['b6:+2.54', 'val0:+0.33']\n    MATCH: ['(my val0 == their val0):+0.19', '(my val3 == their val2):+0.18']\n    COPY: ['their tok_mode -> my tok_mode:+0.14', 'their tok_content -> my val2:+0.50', 'their val1 -> my val1:+0.50', 'their val2 -> my val2:+0.22']\n  head 2: prefer distance [(3, 2.23), (2, 2.23), (6, 0.63)]\n    LOOK FOR: ['b11:-1.26', 'val0:+0.31']\n    MATCH: ['(my tok_content == their tok_content):-1.40', '(my val0 == their val0):+0.19']\n    COPY: ['their tok_content -> my val2:+0.50', 'their val0 -> my val0:+0.24', 'their val2 -> my val2:+0.12', 'their b10 -> my b11:+0.00']\n=== layer 1 : RULES\n  L1R0   rule[dist_mode>=6:0.66]: IF -0.50*tok_content=15[cur=15] + +0.02*val1=5 + +0.67*val3=7 +0.48 > 0 THEN out_mode=pred +0.02; out_content=1 -0.12; out_content <- table(val3) x+1.38 [37 non-identity entries: ]\n  L1R1   rule[dist_mode>=6:0.67]: IF +0.00*val0=11[prev=11] + +0.64*b4 + +0.86*b11 +0.21 > 0 THEN out_mode=cpy3 -1.77; out_content=11 -0.02\n  L1R2   rule: IF +0.00*mode0=cpy2[mode=cpy2&is_mode_tok] + +0.00*b8 + -0.00*b11 -0.00 > 0 THEN tok_mode=rept -0.00; out_content=13 -0.00; tok_mode <- tok_mode (copy) x+0.00\n  L1R3   rule: IF +0.19*val1=2 + +0.31*val1=3 + +0.00*b8 -0.37 > 0 THEN out_content=1 +0.28; out_content=3 -0.00\n  L1R4   rule: IF -0.00*val1=3 + +0.12*b2 + -0.00*b6 +0.15 > 0 THEN out_content=1 +0.13; out_content=3 +0.00\n  L1R5   rule[dist_mode>=6:0.68]: IF +0.78*val1=5 + +0.01*b4 + -0.00*b8 +0.14 > 0 THEN out_content=9 -0.33; out_content=11 -0.01; out_content <- table(val0) x+0.54 [6 non-identity entries: ]\n  L1R6   rule[dist_mode=1:0.40]: IF +0.85*tok_content=5[cur=5] + +0.57*val1=5 + -0.04*b10 -0.03 > 0 THEN out_mode=pred +0.01; out_content=11 +0.01; out_content <- table(val1) x-1.38 [68 non-identity entries: 2->10]\n  L1R7   rule: IF -0.00*val1=5 + -0.00*b8 + +0.00*b10 +0.02 > 0 THEN tok_mode=rept -0.00; out_content=13 -0.00; out_content <- val2 (copy) x-0.00\n  L1R8   rule: IF +0.00*val1=2 + -0.00*mode0=pred + -0.00*b8 -0.07 > 0 THEN tok_mode=rept -0.00; out_content=6 -0.00; tok_mode <- mode0 (copy) x-0.00\n  L1R9   rule: IF +0.00*val0=11[prev=11] + +0.00*b3 + -0.00*b5 +0.14 > 0 THEN tok_mode=rept -0.00; out_content=1 +0.03; out_content <- val0 (copy) x-0.00\n  L1R10  rule[cur=1:0.71]: IF +0.71*tok_content=1[cur=1] + +0.50*tok_content=2[cur=2] + +0.10*val1=5 +0.40 > 0 THEN out_content=0 -0.01; out_content=1 +0.23; out_content <- table(val3) x-3.02 [53 non-identity entries: ]\n  L1R11  rule[cur=7:0.88]: IF +0.48*tok_content=7[cur=7] + -0.37*val1=5 + +0.42*val3=5 +0.39 > 0 THEN out_mode=succ -0.92; out_content=7 +0.03\n  L1R12  rule[cur=6:0.76]: IF +0.38*tok_content=6[cur=6] + -0.00*val2=13 + +0.54*mode0=pred +0.12 > 0 THEN out_content=5 -0.00; out_content=8 +0.45; tok_mode <- tok_mode (copy) x+0.00\n  L1R13  rule: IF +0.00*val1=4[mode=cpy2&is_mode_tok] + +0.00*mode0=succ + +0.00*b8 +0.15 > 0 THEN out_content=12 +0.00; out_content=15 +0.03; out_content <- tok_content (copy) x+0.00\n  L1R14  rule: IF +0.00*tok_mode=rept[mode=rept&is_mode_tok] + -0.00*val2=6 + -0.00*val3=12 -0.00 > 0 THEN tok_mode=rept +0.00; out_mode=pls2 -0.00\n  L1R15  rule: IF +0.00*val0=11[prev=11] + +0.32*val1=4[mode=cpy2&is_mode_tok] + +0.00*val2=13 +0.01 > 0 THEN tok_mode=rept -0.00; out_content=13 -0.05\n  L1R16  rule: IF -0.00*val0=1[prev=1] + +0.00*val0=11[prev=11] + +0.00*b10 -0.19 > 0 THEN tok_mode=rept -0.00; out_content=1 +0.00\n  L1R17  rule: IF -0.00*tok_content=7[cur=7] + +0.00*b8 + -0.00*b11 -0.04 > 0 THEN tok_mode=rept +0.00; out_content=9 +0.00\n  L1R18  rule: IF -0.00*val0=11[prev=11] + -0.00*val1=3 + +0.00*val2=9 +0.11 > 0 THEN out_content=3 +0.00; out_content=11 -0.06; out_content <- val1 (copy) x-0.00\n  L1R19  rule: IF -0.00*val3=0 + +0.50*val3=12 + -0.48*mode0=pred -0.01 > 0 THEN out_content=2 -0.03; out_content=4 -0.00; out_content <- table(val1) x-0.33 [2 non-identity entries: ]\n  L1R20  rule: IF -0.00*tok_content=5[cur=5] + -0.00*val2=1[cur=3] + -0.00*val2=6 +0.01 > 0 THEN tok_mode=rept +0.00; out_content=4 +0.00\n  L1R21  rule[mode=rept:0.43]: IF +0.39*val1=4[mode=cpy2&is_mode_tok] + +0.98*mode0=cpy3[mode=cpy3&is_mode_tok] + +0.08*b10 +0.13 > 0 THEN out_mode=cpy3 +0.14; out_content=5 +0.06; out_content <- table(val2) x+0.65 [42 non-identity entries: ]\n  L1R22  rule[dist_mode>=6:0.76]: IF +0.29*val1=5 + +0.00*b8 + +0.60*b10 +0.07 > 0 THEN out_mode=cpy3 +0.51; out_content=11 -0.11\n  L1R23  rule: IF +0.00*val0=1[prev=1] + +0.00*val1=5 + +0.00*b10 +0.10 > 0 THEN tok_mode=rept +0.00; out_mode=pls2 +0.00\n  L1R24  rule: IF -0.00*val0=11[prev=11] + -0.00*mode0=succ + +0.38*b10 +0.04 > 0 THEN tok_mode=rept -0.00; out_content=10 -0.14\n  L1R25  rule: IF +0.00*val0=15 + +0.00*val1=5 + -0.00*b3 +0.13 > 0 THEN tok_mode=rept -0.00; out_content=15 -0.00\n  L1R26  rule[mode=rept:0.59]: IF +0.00*b3 + +0.28*b6 + -0.64*b10 +0.92 > 0 THEN out_mode=cpy2 -1.55; out_content=1 -0.02\n  L1R27  rule[mode=rept:0.58]: IF +0.00*val2=1[cur=3] + +0.54*b7[mode=pls2&is_mode_tok] + -0.54*b10 +0.50 > 0 THEN out_mode=pls2 -0.98; out_content=11 +0.15\n  L1R28  rule: IF +0.36*val1=5 + +0.00*val3=7 + -0.00*b8 +0.09 > 0 THEN out_content=11 +0.00; out_content=12 -0.12; out_content <- val1 (copy) x+0.00\n  L1R29  rule[dist_mode>=6:0.76]: IF +0.19*val1=4[mode=cpy2&is_mode_tok] + +0.00*b8 + +0.77*b10 +0.05 > 0 THEN out_mode=cpy3 +0.60; out_content=0 -0.09; tok_mode <- tok_mode (copy) x-0.00\n  L1R30  rule[cur=3:0.79]: IF +0.83*tok_content=3[cur=3] + -0.15*val0=11[prev=11] + +0.55*val3=7 +0.14 > 0 THEN out_mode=pred +0.39; out_content=12 +0.00; out_content <- table(val1) x+1.58 [35 non-identity entries: ]\n  L1R31  rule: IF -0.00*tok_content=15[cur=15] + -0.00*val3=12 + +0.00*b6 +0.05 > 0 THEN tok_mode=rept -0.00; out_content=4 +0.00\n  L1R32  rule[dist_mode>=6:0.67]: IF -0.00*b3 + +0.50*b4 + +0.85*b11 +0.15 > 0 THEN out_mode=pred -1.18; out_content=11 -0.02\n  L1R33  rule: IF -0.00*val0=14 + +0.27*val1=5 + -0.00*b5 +0.02 > 0 THEN out_content=5 +0.01; out_content=11 +0.00; out_content <- val1 (copy) x+0.00\n  L1R34  rule: IF -0.00*tok_content=1[cur=1] + -0.00*val1=4[mode=cpy2&is_mode_tok] + +0.00*b10 +0.11 > 0 THEN tok_mode=rept -0.00; out_content=8 -0.00\n  L1R35  rule: IF -0.00*val0=11[prev=11] + -0.00*val1=3 + -0.00*val2=13 -0.00 > 0 THEN tok_mode=rept -0.00; out_content=1 +0.00\n  L1R36  rule: IF -0.00*tok_content=9[cur=9] + +0.00*val0=11[prev=11] + +0.00*b8 -0.08 > 0 THEN tok_mode=rept -0.00; out_content=11 -0.00; b11 <- b4 (copy) x-0.00\n  L1R37  rule: IF +0.00*tok_mode=rept[mode=rept&is_mode_tok] + -0.00*tok_mode=succ[mode=succ&is_mode_tok] + +0.00*tok_mode=pred[mode=pred&is_mode_tok] -0.01 > 0 THEN tok_mode=rept -0.00; tok_mode=succ +0.00; tok_mode <- tok_mode (copy) x+0.00\n  L1R38  rule[mode=rept:0.45]: IF +0.26*val1=4[mode=cpy2&is_mode_tok] + +0.20*val1=13 + +0.00*b8 +0.11 > 0 THEN out_mode=cpy3 +0.32; out_content=12 -0.17; out_content <- val2 (copy) x+0.00\n  L1R39  rule: IF +0.16*tok_mode=cpy2 + -0.00*b8 + +0.00*b12 +0.17 > 0 THEN out_mode=pred +0.00; out_content=4 +0.03\n  L1R40  rule: IF +0.01*val2=5 + -0.00*b3 + +0.32*b7[mode=pls2&is_mode_tok] +0.12 > 0 THEN out_content=4 +0.00; out_content=5 +0.27\n  L1R41  rule[mode=rept:0.58]: IF +0.55*b4 + +0.00*b8 + -0.36*b10 +0.31 > 0 THEN out_mode=rept -0.65; out_content=11 +0.03; tok_content <- val1 (copy) x-0.00\n  L1R42  rule: IF +0.00*val0=11[prev=11] + +0.10*val1=5 + +0.02*b10 -0.08 > 0 THEN out_mode=cpy2 +0.09; out_content=11 -0.00\n  L1R43  rule: IF -0.00*val0=11[prev=11] + +0.31*val1=5 + +0.00*b8 +0.03 > 0 THEN out_mode=pred +0.00; out_content=10 -0.04; out_content <- val3 (copy) x+0.00\n  L1R44  rule: IF +0.00*val0=11[prev=11] + +0.00*val2=8[prev2=8] + -0.00*val3=12 -0.13 > 0 THEN tok_mode=rept -0.00; out_content=8 -0.00\n  L1R45  rule: IF -0.00*val1=2 + -0.00*val1=4[mode=cpy2&is_mode_tok] + +0.02*b2 +0.04 > 0 THEN out_content=5 +0.00; out_content=7 +0.03; tok_content <- val3 (copy) x-0.00\n  L1R46  rule[cur=15&prev=15:0.29]: IF +0.45*val0=14 + -0.00*b8 + +0.42*b10 -0.10 > 0 THEN out_mode=cpy2 +0.26; out_content=11 +0.00; out_content <- val0 (copy) x+0.48\n  L1R47  rule: IF -0.40*val1=4[mode=cpy2&is_mode_tok] + -0.02*val1=5 + +0.21*b3 +0.26 > 0 THEN out_content=0 +0.00; out_content=11 +0.00; out_content <- tok_content (copy) x-0.20\n  L1R48  rule: IF +0.43*val1=5 + +0.04*val3=7 + +0.00*b3 +0.03 > 0 THEN out_mode=pred +0.02; out_content=0 -0.26; out_content <- val1 (copy) x+0.11\n  L1R49  rule[mode=rept:0.42]: IF +0.42*val1=4[mode=cpy2&is_mode_tok] + -0.02*val2=5 + +0.55*b6 +0.09 > 0 THEN out_content=0 -0.11; out_content=5 -0.45; tok_mode <- tok_mode (copy) x-0.00\n  L1R50  rule[mode=pred:0.65]: IF -0.58*val1=13 + +1.58*mode0=pred + -0.00*b8 -0.00 > 0 THEN out_content=6 +0.20; out_content=11 -0.32; out_content <- table(val2) x-3.35 [79 non-identity entries: ]\n  L1R51  rule[cur=9:0.58]: IF +0.85*tok_content=9[cur=9] + +0.75*val2=9 + -0.00*b8 +0.15 > 0 THEN out_mode=cpy3 -0.92; out_content=11 +0.34; out_content <- val2 (copy) x+0.00\n  L1R52  rule: IF +0.29*val1=3 + +0.00*val1=13 + -0.05*b10 +0.36 > 0 THEN out_content=4 -0.10; out_content=11 +0.00; out_content <- table(val1) x+0.58 [6 non-identity entries: ]\n  L1R53  rule: IF +0.00*tok_content=1[cur=1] + +0.00*tok_content=5[cur=5] + -0.00*b3 -0.12 > 0 THEN out_content=0 +0.04; out_content=3 +0.00\n  L1R54  rule: IF +0.00*tok_mode=rept[mode=rept&is_mode_tok] + -0.00*tok_mode=succ[mode=succ&is_mode_tok] + -0.00*tok_mode=pred[mode=pred&is_mode_tok] -0.06 > 0 THEN tok_mode=rept +0.00; tok_mode=succ +0.00; tok_mode <- tok_mode (copy) x-0.00\n  L1R55  rule: IF +0.00*b3 + +0.29*b7[mode=pls2&is_mode_tok] + -0.00*b8 +0.02 > 0 THEN out_mode=succ -0.31; out_content=0 +0.00\n  L1R56  rule: IF -0.15*val2=15 + +0.00*b8 + +0.17*b13 +0.17 > 0 THEN out_content=1 -0.06; out_content=12 -0.00; out_content <- val0 (copy) x+0.38\n  L1R57  rule: IF -0.00*val0=11[prev=11] + -0.00*val1=5 + -0.00*b10 +0.01 > 0 THEN tok_mode=rept -0.00; out_content=12 +0.00\n  L1R58  rule: IF +0.00*tok_mode=rept[mode=rept&is_mode_tok] + -0.00*tok_mode=succ[mode=succ&is_mode_tok] + +0.00*tok_mode=pred[mode=pred&is_mode_tok] -0.07 > 0 THEN tok_mode=rept +0.00; tok_mode=succ +0.00\n  L1R59  rule: IF -0.00*val0=11[prev=11] + +0.13*val1=13 + +0.00*val2=13 -0.03 > 0 THEN out_content=12 +0.00; out_content=13 +0.00; out_content <- tok_content (copy) x+0.00\n  L1R60  rule: IF +0.00*tok_content=5[cur=5] + +0.00*val0=11[prev=11] + +0.00*val0=14 -0.01 > 0 THEN tok_mode=rept -0.00; out_content=1 -0.00\n  L1R61  rule: IF -0.00*tok_mode=cpy2 + -0.00*val1=9 + +0.00*val3=7 -0.20 > 0 THEN out_content=6 +0.00; out_content=7 +0.00\n  L1R62  rule: IF -0.00*tok_mode=rept[mode=rept&is_mode_tok] + -0.00*tok_mode=succ[mode=succ&is_mode_tok] + +0.00*tok_mode=pred[mode=pred&is_mode_tok] -0.02 > 0 THEN tok_mode=rept +0.00; tok_mode=succ -0.00; tok_mode <- tok_mode (copy) x-0.00\n  L1R63  rule: IF +0.00*val1=4[mode=cpy2&is_mode_tok] + +0.10*val1=5 + +0.00*b10 -0.18 > 0 THEN out_content=5 -0.02; out_content=11 -0.00; out_content <- val2 (copy) x+0.01\n  L1R64  rule: IF -0.00*tok_content=15[cur=15] + +0.00*val2=15 + +0.00*val3=12 +0.05 > 0 THEN tok_mode=rept -0.00; out_content=7 +0.00\n  L1R65  rule[dist_mode>=6:0.69]: IF +0.78*val1=5 + -1.28*val3=5 + +0.00*b8 +0.50 > 0 THEN out_mode=cpy2 +0.38; out_content=11 +0.02; out_content <- table(val2) x+1.71 [197 non-identity entries: ]\n  L1R66  rule[dist_mode>=6:0.76]: IF +0.35*val1=5 + -0.00*val2=1[cur=3] + -0.21*b4 +0.15 > 0 THEN tok_mode=rept -0.00; out_mode=succ +0.27\n  L1R67  rule: IF +0.00*tok_content=15[cur=15] + -0.00*val0=11[prev=11] + +0.00*val1=3 +0.15 > 0 THEN tok_mode=rept -0.00; out_content=15 +0.00\n  L1R68  rule[mode=pls2:0.49]: IF +0.00*tok_content=8[cur=8] + +0.46*b2 + +0.17*b10 +0.07 > 0 THEN out_content=7 +0.06; out_content=12 -0.31; out_content <- table(tok_content) x-0.11 [1 non-identity entries: ]\n  L1R69  rule: IF +0.00*val2=5 + -0.00*mode0=succ + -0.00*b2 +0.04 > 0 THEN out_content=6 -0.00; out_content=7 +0.00; out_content <- val3 (copy) x+0.00\n  L1R70  rule: IF +0.00*tok_content=6[cur=6] + +0.00*val3=0 + -0.00*val3=7 -0.01 > 0 THEN tok_mode=rept -0.00; out_content=5 +0.00\n  L1R71  rule: IF +0.00*tok_content=1[cur=1] + -0.00*val2=1[cur=3] + +0.00*b3 +0.09 > 0 THEN tok_mode=rept -0.00; out_content=1 -0.00\n  L1R72  rule: IF -0.00*tok_content=10[cur=10] + +0.00*tok_content=12[cur=12] + +0.00*val2=1[cur=3] +0.00 > 0 THEN tok_mode=rept -0.00; out_content=9 -0.00; tok_content <- val3 (copy) x+0.00\n  L1R73  rule: IF +0.00*tok_mode=rept[mode=rept&is_mode_tok] + -0.00*tok_mode=succ[mode=succ&is_mode_tok] + -0.00*tok_mode=pred[mode=pred&is_mode_tok] -0.04 > 0 THEN tok_mode=rept -0.00; tok_mode=succ -0.00\n  L1R74  rule: IF -0.00*val2=2 + +0.00*val3=0 + +0.00*b10 -0.02 > 0 THEN tok_mode=rept -0.00; out_content=2 +0.00; out_content <- tok_content (copy) x+0.00\n  L1R75  rule: IF -0.00*tok_mode=rept[mode=rept&is_mode_tok] + -0.00*tok_mode=succ[mode=succ&is_mode_tok] + -0.00*val2=14 -0.02 > 0 THEN tok_mode=rept +0.00; tok_mode=succ -0.00\n  L1R76  rule: IF +0.00*val0=11[prev=11] + +0.00*val2=1[cur=3] + +0.00*val2=3 -0.01 > 0 THEN tok_mode=rept -0.00; out_content=6 +0.00; out_content <- val1 (copy) x-0.00\n  L1R77  rule: IF -0.00*val1=5 + +0.00*b8 + +0.00*b10 +0.10 > 0 THEN tok_mode=rept -0.00; out_mode=pls2 +0.00\n  L1R78  rule: IF +0.00*val0=13 + +0.00*mode0=cpy2[mode=cpy2&is_mode_tok] + -0.00*b10 +0.07 > 0 THEN out_content=1 +0.00; out_content=10 -0.00\n  L1R79  rule: IF +0.00*val0=14 + +0.00*val1=5 + +0.44*b10 +0.04 > 0 THEN out_content=11 -0.00; out_content=12 -0.17; out_content <- val1 (copy) x+0.02\n  L1R80  rule: IF +0.00*tok_content=1[cur=1] + +0.00*val3=1[cur=1] + +0.00*b3 +0.01 > 0 THEN tok_mode=rept -0.00; out_mode=pls2 -0.00\n  L1R81  rule[cur=5&prev=3:0.73]: IF +0.00*val1=3 + +0.47*val3=7 + -0.00*b8 +0.35 > 0 THEN out_mode=rept +0.44; out_mode=pred +0.11\n  L1R82  rule[dist_mode>=6:0.67]: IF -0.00*b6 + -0.23*b10 + +0.76*b11 +0.45 > 0 THEN out_mode=pls2 -1.11; out_content=11 -0.02\n  L1R83  rule: IF -0.12*val0=11[prev=11] + +0.20*val2=13 + +0.00*val3=14 +0.29 > 0 THEN out_mode=pred -0.32; out_content=13 -0.02\n  L1R84  rule[cur=9:0.97]: IF +0.84*tok_content=9[cur=9] + -0.12*b4 + -0.05*b11 +0.12 > 0 THEN out_content=5 -0.34; out_content=11 +0.19\n  L1R85  rule: IF +0.00*val0=11[prev=11] + +0.00*val2=4 + +0.08*b10 +0.07 > 0 THEN tok_mode=rept -0.00; out_content=4 -0.04\n  L1R86  rule: IF -0.03*val0=11[prev=11] + -0.04*b4 + -0.05*b10 +0.17 > 0 THEN out_mode=pred -0.09; out_content=13 -0.00\n  L1R87  rule: IF +0.15*val1=13 + -0.07*val3=12 + +0.00*b3 -0.03 > 0 THEN out_content=1 -0.11; out_content=9 -0.00; tok_content <- val3 (copy) x+0.00\n  L1R88  rule[prev=15:0.79]: IF -0.20*tok_content=0[cur=0] + +0.03*val1=5 + +0.89*val3=12 +0.13 > 0 THEN out_mode=pred +0.00; out_content=15 -0.01\n  L1R89  rule[dist_mode>=6:0.67]: IF +0.31*mode0=cpy2[mode=cpy2&is_mode_tok] + +0.00*b8 + +1.35*b11 -0.08 > 0 THEN out_mode=rept -1.71; out_content=11 -0.02\n  L1R90  rule: IF -0.00*tok_mode=rept[mode=rept&is_mode_tok] + +0.00*val2=7 + -0.00*b3 -0.07 > 0 THEN tok_mode=rept -0.00; out_content=3 -0.00\n  L1R91  rule[mode=rept:0.61]: IF +0.65*tok_mode=cpy3 + +0.10*val0=11[prev=11] + +0.65*b4 +0.33 > 0 THEN out_mode=pred -0.42; out_content=11 +0.02\n  L1R92  rule: IF -0.00*val2=0 + -0.00*val2=1[cur=3] + +0.15*b10 +0.00 > 0 THEN out_content=0 +0.00; out_content=7 -0.04; out_content <- val1 (copy) x-0.00\n  L1R93  rule[dist_mode>=6:0.67]: IF -0.00*val0=3[prev=3] + +0.71*b4 + +0.93*b11 +0.06 > 0 THEN out_mode=succ -1.50; out_content=11 -0.02\n  L1R94  rule: IF +0.03*tok_content=5[cur=5] + +0.00*val1=9 + -0.00*val2=6 -0.25 > 0 THEN out_content=4 +0.00; out_content=6 +0.44\n  L1R95  rule: IF -0.21*b4 + +0.00*b5 + +0.00*b8 +0.37 > 0 THEN out_content=7 -0.13; out_content=11 +0.00; out_content <- val0 (copy) x+0.19\n  L1R96  rule: IF +0.17*tok_content=3[cur=3] + +0.00*val1=2 + +0.19*val1=5 -0.11 > 0 THEN out_mode=cpy2 +0.16; out_content=0 +0.00; out_content <- val3 (copy) x+0.00\n  L1R97  rule: IF +0.00*tok_content=15[cur=15] + +0.00*b2 + +0.00*b8 +0.01 > 0 THEN tok_mode=rept -0.00; out_content=15 +0.00\n  L1R98  rule: IF +0.00*val0=14 + +0.00*val1=4[mode=cpy2&is_mode_tok] + -0.00*b3 +0.04 > 0 THEN tok_mode=rept -0.00; out_content=15 -0.00; out_content <- tok_content (copy) x-0.00\n  L1R99  rule[dist_mode>=6:0.72]: IF +0.52*val0=11[prev=11] + +0.46*val1=13 + +0.00*b8 +0.18 > 0 THEN out_mode=cpy2 +0.18; out_content=11 -0.05; out_content <- table(val0) x+1.53 [29 non-identity entries: ]\n  L1R100 rule[dist_mode>=6:0.67]: IF +0.43*val0=3[prev=3] + +0.90*val1=4[mode=cpy2&is_mode_tok] + +0.28*val1=5 +0.50 > 0 THEN out_mode=pred +0.01; out_content=3 -0.09; out_content <- table(val0) x-5.17 [67 non-identity entries: ]\n  L1R101 rule[dist_mode>=6:0.67]: IF -0.08*tok_content=3[cur=3] + +0.07*val1=5 + +0.37*mode0=pred +0.51 > 0 THEN out_content=2 -0.04; out_content=11 -0.06; out_content <- table(val1) x-0.47 [39 non-identity entries: ]\n  L1R102 rule[mode=pls2&is_mode_tok:1.00]: IF +0.39*val1=4[mode=cpy2&is_mode_tok] + +1.00*b7[mode=pls2&is_mode_tok] + -0.02*b10 +0.11 > 0 THEN out_content=5 -0.00; out_content=12 -0.10; out_content <- table(tok_content) x+1.47 [41 non-identity entries: 4->5]\n  L1R103 rule[dist_mode>=6:0.68]: IF +0.26*val1=4[mode=cpy2&is_mode_tok] + +0.61*val1=5 + -0.00*b8 -0.03 > 0 THEN out_mode=cpy3 +0.33; out_content=11 +0.01; out_content <- table(val0) x+0.46 [4 non-identity entries: ]\n  L1R104 rule[mode=pls2:0.49]: IF +1.02*b2 + +0.01*b10 + -0.00*b13 -0.02 > 0 THEN out_content=0 -0.32; out_content=9 +0.41; out_content <- table(val2) x-3.31 [159 non-identity entries: ]\n  L1R105 rule: IF +0.07*val1=3 + -0.00*b3 + +0.00*b5 -0.03 > 0 THEN out_content=1 +0.10; out_content=15 -0.00; out_content <- val0 (copy) x-0.00\n  L1R106 rule[dist_mode>=6:0.76]: IF -0.37*mode0=cpy2[mode=cpy2&is_mode_tok] + +0.46*b5 + +0.02*b10 +0.48 > 0 THEN out_content=3 +0.07; out_content=11 +0.02; out_content <- table(val2) x-0.75 [81 non-identity entries: ]\n  L1R107 rule: IF -0.00*tok_content=4[cur=4] + -0.00*tok_content=8[cur=8] + -0.00*b10 +0.04 > 0 THEN tok_mode=rept +0.00; out_content=4 +0.00\n  L1R108 rule[dist_mode>=6:0.71]: IF +0.69*val1=5 + +0.54*val1=13 + +0.17*b10 +0.37 > 0 THEN out_mode=pred +0.40; out_content=11 -0.05; out_content <- table(val2) x+1.74 [216 non-identity entries: ]\n  L1R109 rule: IF +0.24*val3=7 + -0.00*b4 + -0.00*b8 +0.00 > 0 THEN out_content=3 +0.00; out_content=4 +0.00\n  L1R110 rule: IF +0.00*tok_mode=rept[mode=rept&is_mode_tok] + +0.00*tok_mode=succ[mode=succ&is_mode_tok] + -0.00*tok_mode=pred[mode=pred&is_mode_tok] -0.03 > 0 THEN tok_mode=rept +0.00; tok_mode=succ +0.00\n  L1R111 rule: IF -0.00*val1=2 + +0.29*val1=5 + +0.04*b5 +0.05 > 0 THEN out_content=0 -0.09; out_content=11 +0.00; out_content <- val0 (copy) x+0.23\n  L1R112 rule: IF +0.00*tok_mode=rept[mode=rept&is_mode_tok] + -0.00*tok_mode=succ[mode=succ&is_mode_tok] + -0.00*tok_mode=pred[mode=pred&is_mode_tok] -0.07 > 0 THEN tok_mode=rept +0.00; tok_mode=succ +0.00\n  L1R113 rule: IF +0.00*val0=13 + -0.00*val1=4[mode=cpy2&is_mode_tok] + +0.00*val2=11 -0.16 > 0 THEN tok_mode=rept -0.00; out_content=11 -0.05; tok_content <- val2 (copy) x-0.00\n  L1R114 rule[dist_mode>=6:0.73]: IF +1.03*tok_mode=cpy2 + +1.11*val1=12[mode=rept] + +0.33*b10 +0.17 > 0 THEN out_content=3 -0.23; out_content=5 -0.11; out_content <- table(tok_content) x+2.01 [144 non-identity entries: 4->5, 10->11, 11->12, 12->13, 14->15, 15->0]\n  L1R115 rule: IF -0.04*val2=4 + +0.44*b10 + -0.01*b11 +0.02 > 0 THEN out_content=4 -0.30; out_content=11 +0.00\n  L1R116 rule: IF +0.00*val1=5 + +0.00*b8 + +0.25*b10 +0.02 > 0 THEN out_content=8 -0.14; out_content=11 +0.00\n  L1R117 rule: IF -0.00*tok_mode=cpy2 + -0.00*tok_content=3[cur=3] + +0.00*tok_content=10[cur=10] +0.08 > 0 THEN tok_mode=rept -0.00; out_content=10 -0.00\n  L1R118 rule[dist_mode>=6:0.68]: IF -0.15*val0=11[prev=11] + +0.67*val1=5 + +0.41*val2=1[cur=3] +0.09 > 0 THEN out_mode=pls2 +0.22; out_content=11 +0.01; out_content <- table(val1) x+0.73 [36 non-identity entries: ]\n  L1R119 rule[cur=9:0.97]: IF +0.57*tok_content=9[cur=9] + -0.01*val0=11[prev=11] + +0.10*val2=9 +0.04 > 0 THEN out_content=9 +0.07; out_content=11 +0.60\n  L1R120 rule: IF -0.00*val1=5 + -0.00*b3 + -0.00*b5 -0.01 > 0 THEN out_content=3 +0.00; out_content=15 +0.00; out_content <- tok_content (copy) x-0.00\n  L1R121 rule: IF +0.00*val1=4[mode=cpy2&is_mode_tok] + -0.00*b5 + -0.00*b10 +0.01 > 0 THEN tok_mode=rept -0.00; out_content=7 -0.00\n  L1R122 rule: IF +0.00*tok_content=1[cur=1] + +0.00*val3=0 + -0.00*b3 +0.01 > 0 THEN tok_mode=rept -0.00; out_content=0 -0.00\n  L1R123 rule[dist_mode>=6:0.76]: IF +0.10*val1=13 + -0.61*b4 + -0.00*b5 +0.41 > 0 THEN out_mode=pls2 +0.35; out_content=11 -0.01\n  L1R124 rule[mode=rept&prev3=5:0.62]: IF +0.27*tok_content=5[cur=5] + +0.37*val1=4[mode=cpy2&is_mode_tok] + +0.00*b8 -0.08 > 0 THEN out_content=5 -0.08; out_content=11 -0.00; out_content <- val1 (copy) x-0.03\n  L1R125 rule[dist_mode>=6:0.74]: IF +0.38*val1=5 + -0.00*b8 + +0.30*b10 +0.07 > 0 THEN out_content=8 -0.23; out_content=11 -0.01; out_content <- val0 (copy) x+0.18\n  L1R126 rule: IF -0.14*val1=5 + +0.00*b8 + +0.08*b10 +0.21 > 0 THEN out_content=7 +0.00; out_content=9 +0.06\n  L1R127 rule[mode=pls2:0.49]: IF -0.00*val2=13 + +0.51*b2 + -0.00*b8 -0.01 > 0 THEN out_content=4 -0.03; out_content=7 +0.24\n=== readout: logits[v] = out[v]*scale[v] + bias[v]; description length = 3832",
+   "description_length": 3832,
+   "north_star_iid": {
+    "agree_model_rule": 1.0,
+    "agree_oracle_rule": 0.848,
+    "model_oracle_rule": 0.848
+   },
+   "north_star_soft_iid": {
+    "agree_model_rule": 1.0,
+    "agree_oracle_rule": 0.848,
+    "model_oracle_rule": 0.848
+   },
+   "north_star_shift": {
+    "agree_model_rule": 1.0,
+    "agree_oracle_rule": 0.52445,
+    "model_oracle_rule": 0.52445,
+    "agree_model_heldout": 1.0,
+    "agree_oracle_heldout": 0.30416312659303313,
+    "model_oracle_heldout": 0.30416312659303313
+   },
+   "north_star_soft_shift": {
+    "agree_model_rule": 1.0,
+    "agree_oracle_rule": 0.52445,
+    "model_oracle_rule": 0.52445,
+    "agree_model_heldout": 1.0,
+    "agree_oracle_heldout": 0.30416312659303313,
+    "model_oracle_heldout": 0.30416312659303313
+   }
+  }
+ }
+}
