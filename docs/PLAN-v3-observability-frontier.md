@@ -276,8 +276,29 @@ proposed *explanation* for those errors is refuted. Task E1c (dispatched) goes b
 directly — mode-wise distribution, which layer they originate in, and manual inspection of the actual rules that
 fire on wrong inputs — rather than assuming another mechanism before checking.
 
-### E1c — characterize the deterministic argmax errors directly  ☐
+### E1c — characterize the deterministic argmax errors directly  ☑ done 2026-09-15, see `docs/tasks/E1c-report.md`
 See `docs/tasks/E1c-characterize-argmax-errors.md`. Mode-wise breakdown, layer-wise origin, and manual rule-table
 inspection of sampled wrong steps (classified as: no covering rule / wrong rule fired / right rule overwritten).
 Decides the next concrete, testable hypothesis — E2/E3 stay parked until one exists that's as specific as the two
 already refuted.
+
+
+## 10. E1c result (2026-09-15): two distinct mechanisms, not one
+
+Full data: `docs/tasks/E1c-report.md`. Errors concentrate in arithmetic-transform modes (pred 28%, pls2 23%, succ
+13%) vs copy modes (cpy2 8%, rept 8%, cpy3 14.5%) — a different pattern from T1's near-switch finding, present even
+with zero switches involved. 73% of wrong steps are missing the correct value from the state after layer 0 entirely
+(errors originate upstream, not from late-stage interference on an already-correct value). Static rule-table audit:
+every value-transform table gated on succ/pred/pls2, across all 3 seeds, is still exactly its random-init identity
+matrix — the `+k mod 16` arithmetic was never learned. A runtime firing trace adds a second, unexpected mechanism:
+the same identity-stuck succ-gated rules cross-fire during unrelated modes (0% of right cpy3 steps, 70% of wrong
+ones) because their firing condition is a weighted sum an unrelated feature can satisfy alone — injecting a spurious
+vote that degrades cpy2/cpy3/rept's otherwise-correct copy mechanism. pred/pls2 share the stuck-identity-table fact
+but not this firing signature — flagged as genuinely unexplained rather than force-fit into the same story.
+
+### E1d — ablation test of both mechanisms  ☐
+See `docs/tasks/E1d-ablate-identity-stuck-rules.md`. Zero the identified rules' output-register votes only (not
+their effect on state/routing) and re-run inference — no training. Predicts improvement on succ/cpy2/cpy3/rept,
+no improvement on pred/pls2, with a random-rule-count control. This is the first task in the E-series testing a
+causal intervention rather than a correlation; if it confirms, it produces a specific training-time fix (stricter
+rule gating) rather than another quantization-scope guess.
