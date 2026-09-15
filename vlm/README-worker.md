@@ -33,3 +33,12 @@ End every commit message with:
 Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01A6K5c33B5s73EZVoUnWG52
 ```
+
+## Research log
+
+`docs/RESEARCH-LOG.md` is the chronological narrative of the whole project: decision → what was measured → how it
+changed the next decision, including negative results (kept, never edited away). After finishing a task's own report
+(`docs/tasks/<name>-report.md`), append one entry to `RESEARCH-LOG.md` in the same style as the existing entries —
+a short "Step N" section: what was tested and why, what was found, and what it changed about the next step. Keep it
+to a few sentences; the task report has the numbers, this file has the story. Commit it in the same push as the task
+report.
