@@ -296,9 +296,33 @@ ones) because their firing condition is a weighted sum an unrelated feature can 
 vote that degrades cpy2/cpy3/rept's otherwise-correct copy mechanism. pred/pls2 share the stuck-identity-table fact
 but not this firing signature — flagged as genuinely unexplained rather than force-fit into the same story.
 
-### E1d — ablation test of both mechanisms  ☐
+### E1d — ablation test of both mechanisms  ☑ **REFUTED (specific effect, wrong direction)**, 2026-09-15, see `docs/tasks/E1d-report.md`
 See `docs/tasks/E1d-ablate-identity-stuck-rules.md`. Zero the identified rules' output-register votes only (not
 their effect on state/routing) and re-run inference — no training. Predicts improvement on succ/cpy2/cpy3/rept,
 no improvement on pred/pls2, with a random-rule-count control. This is the first task in the E-series testing a
 causal intervention rather than a correlation; if it confirms, it produces a specific training-time fix (stricter
 rule gating) rather than another quantization-scope guess.
+
+
+## 11. E1d result (2026-09-15, run by the PI directly — worker hit a rate limit): refuted, but the static fact stands
+
+Full data: `docs/tasks/E1d-report.md`. Ablating the identified rules' output votes has a real, measurable effect
+(ruling out pure noise) but the wrong one: succ accuracy gets *worse* after ablation in both seeds where any rule
+qualified (0.841→0.771; 0.817→0.741), and copy-mode accuracy shows no consistent recovery. The random control is
+not uniformly gentler either. **The "spurious vote actively hurts" half of E1c's theory is refuted** — these rules
+do something real, but not the clean, isolable harm the theory predicted; a dense 40+-rule voting structure makes
+whole-rule-set ablation too coarse an instrument to attribute a clean causal story, exactly as E1c's own report
+anticipated as its fallback.
+
+**What survives, needing no causal test**: every value-transform table gated on succ/pred/pls2 is still exactly its
+random-init identity matrix, in every rule checked, all 3 seeds — a direct read of trained weights. Likely mechanism,
+traced from the codebase: these tables are explicitly regularized toward identity (`l1_table` in the loss), which
+directly opposes any gradient trying to teach them `+1`/`-1`/`+2`. If gradient signal to a value table (gated by a
+hard firing signal) is weak relative to this pull, the regularizer wins outright — consistent with the tables being
+*exactly*, not approximately, identity.
+
+### E2-redux — does relaxing the identity regularizer let arithmetic get learned?  ☐
+The first genuinely training-based experiment in the E-series. Reduce or anneal `l1_table` and check whether
+succ/pred/pls2 accuracy improves while copy-mode accuracy (whose tables *should* stay identity) does not regress.
+Requires actual training runs (hours), currently blocked on worker availability (rate limit resets 8:40pm UTC) —
+task file to be written once the worker resumes, or run by the PI directly if progress should continue sooner.
