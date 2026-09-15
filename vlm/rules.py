@@ -115,6 +115,79 @@ def execute_hard_g(bundle, X, binarize=True, hard_attn=True, keep_topk=True):
         code = step_state(code + delta[..., :F]); out += delta[..., F:]
     return out * np.asarray(p['out_scale']) + np.asarray(p['out_bias'])
 
+def _quantize(z, n_levels, clamp_hint=0.0):
+    """Round z (>=0) to the nearest of n_levels evenly-spaced values in [0, clampv]. clampv is clamp_hint if that is
+    > 0 (a trained model's own cfg['clamp']), else the batch's own max (for a model that was never clamped, e.g. a
+    soft model with no `clamp` in its cfg) -- so every quantization level is used, whatever the model's natural
+    activation scale is. n_levels=None means no rounding at all (the L=infinity sanity ceiling).
+    Boundaries between levels are placed at the midpoints and compared with a strict '>' (as the existing binarize
+    threshold does), so n_levels=2 with clamp_hint=1.0 exactly reproduces `binz`'s `z > 0.5` for a clamp=1.0, ste
+    model: level 0 = 0, level 1 = clampv, boundary at clampv/2."""
+    if n_levels is None:
+        return z
+    clampv = clamp_hint if clamp_hint > 0 else float(z.max()) if z.size else 1.0
+    if clampv <= 0: clampv = 1.0
+    if n_levels <= 1:
+        return np.zeros_like(z)
+    step = clampv / (n_levels - 1)
+    boundaries = step * (np.arange(n_levels - 1) + 0.5)
+    idx = (z[..., None] > boundaries).sum(-1)
+    return idx.astype(z.dtype) * step
+
+def execute_quantized_g(bundle, X, n_levels=2, hard_attn=True, keep_topk=True):
+    """Generalizes execute_hard_g's binarize step to n_levels evenly-spaced activation levels (n_levels=2 with a
+    clamp=1.0, ste model is byte-for-byte the same as execute_hard_g(binarize=True); n_levels=None reproduces the
+    continuous re-execution with no rounding at all, a sanity ceiling)."""
+    from models_g import layout
+    p, m, cfg = bundle['params'], bundle['masks'], bundle['cfg']; L_ = layout(cfg)
+    F, G, Cm, k, Tm = L_['F'], L_['G'], L_['Cmax'], cfg['k'], cfg['T_max']
+    Mv = np.asarray(L_['Mv']); same = np.asarray(L_['same']); to_bool = np.asarray(L_['to_bool'])
+    B, T = X.shape
+    clampv = cfg.get('clamp', 0.0); ste = cfg.get('ste', False)
+    thr0 = cfg.get('ste_thr', 0.5) if ste else 0.0
+    def act(z):
+        z = np.maximum(z, 0.0); return np.minimum(z, clampv) if clampv > 0 else z
+    def topk(z):
+        if not keep_topk: return z
+        thr = np.sort(z, -1)[..., -k][..., None]; return np.where((z >= thr) & (z > 0), z, 0.0)
+    def qz(z):
+        if ste and n_levels == 2:                                         # exact backward-compat path: z > ste_thr
+            return (z > thr0).astype(np.float64) if n_levels is not None else z
+        return _quantize(z, n_levels, clamp_hint=clampv)
+    def step_state(z): return qz(topk(act(z)))
+    def grouped(code): cg = np.einsum('btf,fgv->btgv', code, Mv[:code.shape[-1]]); return cg, cg.sum(-1)
+    def ungroup(dg, n): return np.einsum('btgv,fgv->btf', dg, Mv[:n])
+    code = qz(act(np.asarray(p['emb'] * m['emb'])[X])); out = np.zeros((B, T, VOCAB))
+    dist = np.arange(T)[:, None] - np.arange(T)[None, :]
+    for lp, lm in zip(p['layers'], m['layers']):
+        cg, gs = grouped(code)
+        u = np.asarray(lp['u'] * lm['u']); A = np.asarray(lp['A'] * lm['A']) * same; P = np.asarray(lp['P'] * lm['P'])
+        S = np.einsum('btgv,hgk,bskv->bhts', cg, A, cg) + np.einsum('hg,bsg->bhs', u, gs)[:, :, None, :]
+        S = np.where((dist > 0)[None, None], S + np.take(np.asarray(lp['rel']), np.clip(dist, 0, Tm), axis=1)[None], -1e9)
+        S = np.concatenate([S, np.zeros(S.shape[:-1] + (1,))], -1)
+        if hard_attn:
+            a = np.zeros_like(S); np.put_along_axis(a, S.argmax(-1)[..., None], 1.0, -1)
+        else:
+            e = np.exp(S - S.max(-1, keepdims=True)); a = e / e.sum(-1, keepdims=True)
+        cg_src = np.concatenate([cg, np.zeros((B, 1, G, Cm))], 1)
+        copied = np.einsum('bhts,bskv->bhtkv', a, cg_src)
+        dg = np.einsum('bhtkv,hkg->btgv', copied, P * same)
+        dg[..., 0] += np.einsum('bhtk,hkg->btg', copied.sum(-1), P * to_bool)
+        delta = ungroup(dg, F + VOCAB)
+        code = step_state(code + delta[..., :F]); out += delta[..., F:]
+        cg, gs = grouped(code)
+        W1 = np.asarray(lp['W1'] * lm['W1']); W2 = np.asarray(lp['W2'] * lm['W2']); b1 = np.asarray(lp['b1'])
+        hid = qz(act(code @ W1 + b1))
+        delta = hid @ W2
+        Gs = np.asarray(lp['Gs'] * lm['Gs']); Gd = np.asarray(lp['Gd'] * lm['Gd']); Tt = np.asarray(lp['T'])
+        src = np.einsum('btkv,rk->btrv', cg, Gs); mapped = np.einsum('btrv,rvw->btrw', src, Tt) * hid[..., None]
+        kind_ok = np.einsum('rk,kg->rg', Gs != 0, same) > 0; bool_ok = np.einsum('rk,kg->rg', Gs != 0, to_bool) > 0
+        dg = np.einsum('btrw,rg->btgw', mapped, np.where(kind_ok, Gd, 0.0))
+        dg[..., 0] += np.einsum('btr,rg->btg', mapped.sum(-1), np.where(bool_ok, Gd, 0.0))
+        delta = delta + ungroup(dg, F + VOCAB)
+        code = step_state(code + delta[..., :F]); out += delta[..., F:]
+    return out * np.asarray(p['out_scale']) + np.asarray(p['out_bias'])
+
 def north_star_any(bundle, X, ann, soft_logits, **kw):
     ex = execute_hard_g if bundle['cfg']['model'] == 'rulenet_g' else execute_hard
     hard = ex(bundle, X, **kw)

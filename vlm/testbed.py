@@ -108,9 +108,11 @@ def annotate(X):
       mode: effective mode; cur/prev/prev2/prev3: content history (or -1); next: oracle argmax content token
       (content index) or -1; arg: the argument the rule reads; is_mode: x[t] is a mode token; dist_mode: t - last
       mode-token position; heldout: the step (mode,arg) or the switch pair is held out; heldout_arg / heldout_sw
-      split the two; oracle_lp: log P_true(x[t+1] | x[..t]); oracle_p: full (B,T,VOCAB) true distribution."""
+      split the two; switch_possible: whether a mode switch could occur at position t+1 (State.switch_possible(t+1),
+      the same condition that makes P_true stochastic there); oracle_lp: log P_true(x[t+1] | x[..t]); oracle_p:
+      full (B,T,VOCAB) true distribution."""
     B, T = X.shape
-    keys = ['mode', 'cur', 'prev', 'prev2', 'prev3', 'next', 'arg', 'is_mode', 'dist_mode', 'heldout', 'heldout_arg', 'heldout_sw']
+    keys = ['mode', 'cur', 'prev', 'prev2', 'prev3', 'next', 'arg', 'is_mode', 'dist_mode', 'heldout', 'heldout_arg', 'heldout_sw', 'switch_possible']
     A = {k: np.full((B, T), -1, np.int64) for k in keys}
     lp = np.zeros((B, T)); P = np.zeros((B, T, VOCAB))
     for b in range(B):
@@ -124,6 +126,7 @@ def annotate(X):
                 A[k][b, t] = c[-1 - i] if len(c) > i else -1
             if t + 1 < T:
                 p = st.next_dist(t + 1); P[b, t] = p; lp[b, t] = np.log(p[X[b, t + 1]])
+                A['switch_possible'][b, t] = int(st.switch_possible(t + 1))
                 if t + 1 > 3:
                     A['next'][b, t] = rule_apply(st.mode, c); A['arg'][b, t] = rule_arg(st.mode, c)
                     ha = int(HELD_ARG[st.mode] == A['arg'][b, t])
