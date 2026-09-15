@@ -115,24 +115,34 @@ def execute_hard_g(bundle, X, binarize=True, hard_attn=True, keep_topk=True):
         code = step_state(code + delta[..., :F]); out += delta[..., F:]
     return out * np.asarray(p['out_scale']) + np.asarray(p['out_bias'])
 
-def _quantize(z, n_levels, clamp_hint=0.0):
-    """Round z (>=0) to the nearest of n_levels evenly-spaced values in [0, clampv]. clampv is clamp_hint if that is
-    > 0 (a trained model's own cfg['clamp']), else the batch's own max (for a model that was never clamped, e.g. a
-    soft model with no `clamp` in its cfg) -- so every quantization level is used, whatever the model's natural
-    activation scale is. n_levels=None means no rounding at all (the L=infinity sanity ceiling).
-    Boundaries between levels are placed at the midpoints and compared with a strict '>' (as the existing binarize
-    threshold does), so n_levels=2 with clamp_hint=1.0 exactly reproduces `binz`'s `z > 0.5` for a clamp=1.0, ste
-    model: level 0 = 0, level 1 = clampv, boundary at clampv/2."""
+def _quantize(z, n_levels, thr0, clampv):
+    """Round z (>=0) to the nearest of n_levels evenly-spaced normalized levels {0, 1/(L-1), ..., 1}.
+    n_levels=None means no rounding at all (the L=infinity sanity ceiling).
+
+    The level-0/level-1 boundary is ANCHORED at thr0 (0 for a non-ste model, the trained ste_thr for a snapped one)
+    so n_levels=2 is always exactly `z > thr0` -- the same rule execute_hard_g's `binz` already uses for both cases,
+    so this reproduces both today's execute_hard_g on a clamped/ste model *and* the existing north-star binarize
+    reading on an unclamped soft model (bug fixed 2026-09-15: an earlier version anchored levels>=2's boundaries at
+    clampv/2 unconditionally, which on an unclamped model uses the batch's own max as clampv -- putting the L=2
+    boundary at HALF of an extreme outlier instead of at (effectively) zero, zeroing out nearly every genuinely-
+    active feature; agreement on rng_v1 measured 0.055%, far below chance, instead of near the committed 30%
+    baseline). Remaining levels (n_levels > 2) subdivide (thr0, clampv] evenly; clampv is cfg['clamp'] if the model
+    was trained with one, else the batch's own observed max (so every level is used on an unclamped model's own
+    natural scale). The value written back is always the NORMALIZED level index / (n_levels-1) in [0,1], never the
+    raw magnitude -- matching the plan's own {0, 1/L, ..., 1} alphabet and keeping the scale sane for a model whose
+    weights were never trained against arbitrary raw magnitudes."""
     if n_levels is None:
         return z
-    clampv = clamp_hint if clamp_hint > 0 else float(z.max()) if z.size else 1.0
-    if clampv <= 0: clampv = 1.0
     if n_levels <= 1:
         return np.zeros_like(z)
-    step = clampv / (n_levels - 1)
-    boundaries = step * (np.arange(n_levels - 1) + 0.5)
+    if n_levels == 2:
+        return (z > thr0).astype(z.dtype)
+    clampv = clampv if clampv > 0 else float(z.max()) if z.size else 1.0
+    if clampv <= thr0: clampv = thr0 + 1e-6
+    extra = thr0 + (clampv - thr0) * (np.arange(1, n_levels - 1) / (n_levels - 1))
+    boundaries = np.concatenate([[thr0], extra])
     idx = (z[..., None] > boundaries).sum(-1)
-    return idx.astype(z.dtype) * step
+    return idx.astype(z.dtype) / (n_levels - 1)
 
 def execute_quantized_g(bundle, X, n_levels=2, hard_attn=True, keep_topk=True):
     """Generalizes execute_hard_g's binarize step to n_levels evenly-spaced activation levels (n_levels=2 with a
@@ -150,10 +160,7 @@ def execute_quantized_g(bundle, X, n_levels=2, hard_attn=True, keep_topk=True):
     def topk(z):
         if not keep_topk: return z
         thr = np.sort(z, -1)[..., -k][..., None]; return np.where((z >= thr) & (z > 0), z, 0.0)
-    def qz(z):
-        if ste and n_levels == 2:                                         # exact backward-compat path: z > ste_thr
-            return (z > thr0).astype(np.float64) if n_levels is not None else z
-        return _quantize(z, n_levels, clamp_hint=clampv)
+    def qz(z): return _quantize(z, n_levels, thr0, clampv)
     def step_state(z): return qz(topk(act(z)))
     def grouped(code): cg = np.einsum('btf,fgv->btgv', code, Mv[:code.shape[-1]]); return cg, cg.sum(-1)
     def ungroup(dg, n): return np.einsum('btgv,fgv->btf', dg, Mv[:n])
