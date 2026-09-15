@@ -110,7 +110,7 @@ smaller); scaling the binary model further (T2 shows saturation).
 
 Order is by information per unit of compute. E0 and E1 need no training and settle which of (a)–(d) we are fighting.
 
-### E0 — Attribute the lost nats  ☐
+### E0 — Attribute the lost nats  ☑ done 2026-09-15, see `docs/tasks/E0-E1-report.md`
 No training. For `ctrl_dense_sae`, `rng_v1` (soft), `T2_large` (binary), on the iid split, using the oracle's
 per-position distribution:
 * ☐ Split positions into: seed (uniform, unfixable), deterministic rule steps (switch impossible), stochastic rule
@@ -123,7 +123,7 @@ per-position distribution:
   `switch_possible`, cause (d) dominates → the first fix is a *feature*, not levels (E2 still runs, but expectations
   change). If the gap is spread over deterministic argmax errors, causes (a)/(b) dominate → E2/E3 are the main line.
 
-### E1 — Post-hoc quantization of the soft model  ☐
+### E1 — Post-hoc quantization of the soft model  ☑ done 2026-09-15, see `docs/tasks/E0-E1-report.md`
 No training. Take `rng_v1` (and a soft twin of `T2_large`'s config if cheap to train once, 1 seed) and re-execute
 with activations rounded to L levels, L ∈ {2, 3, 4, 8, 16, ∞}, hard attention on/off.
 * ☐ Report agreement with the soft model and NLL of the quantized program, per L.
@@ -214,3 +214,50 @@ committed per finished seed, one launcher (the PI or the assigned worker, never 
   resumable, and "quiet log with no error" is itself the signal to check `uptime`.
 * Exactly one party launches jobs per task. Duplicate monitors and duplicate launchers both happened; both cost.
 * Every task file states the falsification criterion and the number that decides it before the run.
+
+
+## 7. E0/E1 actual results (2026-09-15) — what held, what didn't, and the resulting redesign
+
+Full data and reasoning: `docs/tasks/E0-E1-report.md`. Prediction check against §4:
+
+| prediction | outcome |
+|---|---|
+| 1. ≥40% of gap in stochastic calibration, no feature tracks `switch_possible` | **Wrong on both counts.** Stochastic share is 36.2%. Five features clear the legibility bar for `switch_possible` (best F1 0.827). |
+| 2. Soft model reaches ≥95% agreement by L=8, ≥99% by L=16 | **Wrong.** L=8 gives 61.7%, L=16 gives 60.6% — a 49–62% band, non-monotonic, nowhere near either bar. |
+| 3–5 (E2/E3/E5 predictions) | Not yet tested; #3 is now suspect given #2's outcome (see below). |
+
+**E0 verdict:** causes (a) capacity / (b) optimization dominate the binary model's gap, not (d) calibration. 58.6% of
+the gap is in deterministic rule steps, and 69.4% of *that* is the model's argmax being outright wrong.
+
+**E1 verdict, and the mechanism, which is the important part:** agreement with the soft model never rises above ~62%
+at any finite quantization level up to 16, then jumps to 91% (the true ceiling — hard attention alone already caps
+it there, not 100%) only once magnitude rounding is removed entirely. This is not "the rule layer needs more
+brightness levels" — it is specifically **routing's attention argmax**, computed as a dot product over the code,
+that breaks under quantization: telling two candidate source positions apart needs the *difference* between their
+scores preserved, which a coarse shared alphabet destroys long before the rule layer would need that precision.
+
+**This changes the plan.** E2 as originally scoped (train at L∈{4,8}, one shared alphabet for routing and rules) is
+now a weaker bet: it doesn't separate the two channels E1 just showed need different treatment, and it inherits a
+uniform-binning scheme that already looked like a poor fit (non-monotonic in the post-hoc scan). Before committing
+training compute to either E2 (redesigned) or E3 (distillation), the next step is E1b below — a cheap, no-training
+check of the routing-tie-break mechanism itself, using bundles already on disk.
+
+### E1b — does routing margin predict deterministic argmax errors?  ☐
+No training. On `T2_large` (binary, all 3 seeds), for every deterministic rule step: compute the routing head's
+attention margin (top attention score minus runner-up, per head, at the position and layer the north-star circuit
+trace shows feeds the eventual output feature) and test whether it's smaller on argmax-wrong steps than on
+argmax-right steps (e.g. a simple two-sample comparison, held-out F1 of "margin < threshold" as a predictor of
+argmax-wrong). Also check the same thing restricted to the `cpy3`-after-switch case T1 originally diagnosed.
+* **Confirms the mechanism** if margin is significantly smaller on error steps (and especially on the `cpy3` case).
+  → next task gives routing its own finer alphabet in E2 (decoupled from the rule layer's), or moves straight to E3.
+* **Refutes it** if margin doesn't predict errors → the mechanism story is wrong or incomplete, and E2/E3 should not
+  be redesigned around it without another look — go back to E0's bucket-by-bucket errors for a different lead.
+
+## 8. Standing note on subagent hand-back overhead
+
+During E0/E1, the worker's own turn was repeatedly force-ended by the harness while blocked on a long-running local
+script, producing "still in progress, nothing new" hand-backs every few minutes even after being told not to ping
+until real numbers existed. Each resume cost real tokens without adding information. Lesson for future tasks: when a
+worker reports it's blocked on a specific named background process, the PI should watch that process directly (a
+bounded wait on the log/PID) instead of resuming the worker on every forced hand-back — resume only once the PI's own
+wait confirms real output exists, or once genuinely new information arrives unprompted.
