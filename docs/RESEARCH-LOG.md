@@ -95,14 +95,27 @@ positions apart requires their score *difference* to survive quantization, which
 The rule layer likely doesn't need nearly as much precision. If true, this reframes the entire discreteness cost as
 a routing problem, not a general "not enough levels" problem, and changes what the next experiment should test.
 
-## Step 8 — E1b (in progress): verifying the mechanism before spending training compute on it
+## Step 8 — E1b: the routing-tie-break mechanism, tested directly and refuted
 
-Rather than build a redesigned quantization-aware training run on top of a plausible story, the next step is a cheap
-check using data already on disk: do the deterministic-step errors specifically cluster on routing decisions with a
-narrow margin between the top two candidate positions? This is analysis only — no training — and its outcome decides
-whether the next real experiment is (a) giving routing its own finer alphabet, decoupled from the rule layer's, or
-(b) distillation from the continuous teacher model, or (c) neither, if the margin story doesn't hold up and the
-errors need characterizing a different way. Status: dispatched, running.
+Rather than build a redesigned quantization-aware training run on top of a plausible story, checked it first: do
+deterministic-step errors cluster on routing decisions with a narrow margin between the top two candidates?
+**Finding: no.** Aggregate wrong-step and right-step margins are statistically indistinguishable (0.0375 vs 0.0380);
+a held-out threshold classifier does *worse* than just guessing the majority class. The predicted direction holds on
+2 of 3 independently-trained seeds but reverses on the third. Most decisively: on the exact case the mechanism was
+built to explain (`cpy3` mode, within 4 positions of a switch), the effect **reverses and gets stronger** — wrong
+steps have 2.6x *larger* margins than right steps, the opposite of the prediction. The routing story from step 7 was
+wrong. What stands: E0's finding that these errors dominate the gap is untouched — only the proposed explanation for
+*why* they happen is dead. This is exactly the kind of guess the project is built to make cheaply and kill quickly,
+before it costs a multi-hour training run.
+
+## Step 9 — E1c (in progress): characterizing the errors directly instead of guessing again
+
+Rather than propose a third mechanism on intuition, the next step describes the wrong steps concretely: which modes
+they cluster in, whether the error is already present after the first layer or only appears at the final readout,
+and — by hand, on ~20-30 sampled cases — whether the rulebook simply has no rule covering that input, has a rule
+whose condition or value table is wrong, or has the right rule fire but get overwritten by a later step. The goal is
+a next hypothesis as specific and falsifiable as the two already tested (E0's calibration theory, E1b's routing
+theory) — not another guess to spend training compute on speculatively. Status: dispatched, running.
 
 ---
 
