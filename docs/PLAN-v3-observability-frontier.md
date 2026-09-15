@@ -242,7 +242,7 @@ uniform-binning scheme that already looked like a poor fit (non-monotonic in the
 training compute to either E2 (redesigned) or E3 (distillation), the next step is E1b below — a cheap, no-training
 check of the routing-tie-break mechanism itself, using bundles already on disk.
 
-### E1b — does routing margin predict deterministic argmax errors?  ☐
+### E1b — does routing margin predict deterministic argmax errors?  ☑ **REFUTED**, 2026-09-15, see `docs/tasks/E1b-report.md`
 No training. On `T2_large` (binary, all 3 seeds), for every deterministic rule step: compute the routing head's
 attention margin (top attention score minus runner-up, per head, at the position and layer the north-star circuit
 trace shows feeds the eventual output feature) and test whether it's smaller on argmax-wrong steps than on
@@ -261,3 +261,23 @@ until real numbers existed. Each resume cost real tokens without adding informat
 worker reports it's blocked on a specific named background process, the PI should watch that process directly (a
 bounded wait on the log/PID) instead of resuming the worker on every forced hand-back — resume only once the PI's own
 wait confirms real output exists, or once genuinely new information arrives unprompted.
+
+
+## 9. E1b result (2026-09-15): the routing-tie-break mechanism is refuted
+
+Full data: `docs/tasks/E1b-report.md`. Aggregate wrong-step vs right-step routing margins are statistically
+indistinguishable (0.0375 vs 0.0380; held-out separability worse than the majority-class baseline). The predicted
+direction holds on 2 of 3 seeds but reverses on the third. Most decisively: on the `cpy3`-near-switch subset — the
+specific case the mechanism was built to explain — the effect **reverses and gets stronger**: wrong-step margins are
+2.6x *larger* than right-step margins, not smaller. This mechanism does not hold up.
+
+**What stands**: E0's finding that deterministic-step argmax errors dominate the gap (58.6%) is untouched — only the
+proposed *explanation* for those errors is refuted. Task E1c (dispatched) goes back to characterizing the errors
+directly — mode-wise distribution, which layer they originate in, and manual inspection of the actual rules that
+fire on wrong inputs — rather than assuming another mechanism before checking.
+
+### E1c — characterize the deterministic argmax errors directly  ☐
+See `docs/tasks/E1c-characterize-argmax-errors.md`. Mode-wise breakdown, layer-wise origin, and manual rule-table
+inspection of sampled wrong steps (classified as: no covering rule / wrong rule fired / right rule overwritten).
+Decides the next concrete, testable hypothesis — E2/E3 stay parked until one exists that's as specific as the two
+already refuted.
