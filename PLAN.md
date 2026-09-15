@@ -1,5 +1,8 @@
 # Plan (revised 2026-09-12)
 
+> **2026-09-15:** superseded for the next phase by `docs/PLAN-v3-observability-frontier.md` (observability without
+> sacrificing accuracy: the graded-alphabet frontier). This file remains the record of Phases 0–2 and the gates.
+
 Living document. The goal is fixed; the design and the phases change as the measurements come in.
 Prior work and the reasons for this revision: `docs/REVIEW-2026-09-12.md`. Prior report: `docs/interpretable_lm_design.md`.
 
