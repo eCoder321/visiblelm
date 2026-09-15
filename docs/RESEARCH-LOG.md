@@ -108,14 +108,28 @@ wrong. What stands: E0's finding that these errors dominate the gap is untouched
 *why* they happen is dead. This is exactly the kind of guess the project is built to make cheaply and kill quickly,
 before it costs a multi-hour training run.
 
-## Step 9 — E1c (in progress): characterizing the errors directly instead of guessing again
+## Step 9 — E1c: two concrete, distinct mechanisms found — arithmetic never learned, and cross-mode vote contamination
 
-Rather than propose a third mechanism on intuition, the next step describes the wrong steps concretely: which modes
-they cluster in, whether the error is already present after the first layer or only appears at the final readout,
-and — by hand, on ~20-30 sampled cases — whether the rulebook simply has no rule covering that input, has a rule
-whose condition or value table is wrong, or has the right rule fire but get overwritten by a later step. The goal is
-a next hypothesis as specific and falsifiable as the two already tested (E0's calibration theory, E1b's routing
-theory) — not another guess to spend training compute on speculatively. Status: dispatched, running.
+Characterized the wrong steps directly instead of guessing a third mechanism. **Mode-wise, the errors concentrate in
+the arithmetic-transform modes (pred 28%, pls2 23%, succ 13%) roughly 2-3x more than copy/identity modes (cpy2 8%,
+rept 8%, cpy3 14.5%)** — a different pattern from T1's near-switch finding, since this holds even with no switch
+involved at all. **Layer-wise, 73% of wrong steps have the correct value completely absent from the state after
+layer 0** — most errors originate upstream, not from a later step discarding an already-correct answer. The
+rule-table inspection found the specific, decisive fact: **every value-transform table gated on `succ`/`pls2` that
+was checked, across all 3 seeds, is still exactly its random-init identity matrix** — the `+1`/`+2 mod 16` arithmetic
+these modes need was never learned by any rule using the intended value-map pathway. A runtime firing trace then
+showed *why* this doesn't explain everything uniformly: these identity-stuck rules fire on 78.5% of wrong `succ`
+steps vs. 8.8% of right ones (a clean causal signal), and — unexpectedly — the same succ-labeled rules also
+**cross-fire during entirely different modes** (0% of right `cpy3` steps, 70% of wrong ones) because their firing
+threshold is a weighted sum that unrelated boolean co-activations can satisfy alone, injecting a spurious
+identity-echo vote that degrades cpy2/cpy3/rept's otherwise-correct mechanism. `pred` and `pls2` share the same
+stuck-identity table fact but *not* this firing-rate signature (one fires regardless of correctness, the other
+fires *more* on correct steps) — flagged as genuinely unexplained rather than folded into the same story.
+
+**Next hypothesis, stated precisely and falsifiable without training**: ablating the identified identity-stuck rules
+from the readout should measurably improve accuracy on succ/cpy2/cpy3/rept specifically, while pred/pls2 should show
+little or no improvement — a directly testable prediction, including an explicit prediction of where it will *not*
+generalize. Full detail: `docs/tasks/E1c-report.md`.
 
 ---
 
