@@ -237,3 +237,48 @@ crude versions of this frontier.
 ### Next
 Round 2: the same critics check whether v2 actually resolves their findings, and look for new fatal issues
 introduced by the fixes.
+
+---
+
+## 2026-10-24 — Critique round 2 and the ledger turn (v2.1)
+
+**The new problem.** Both critics independently found that v2's weak point was the same block: *re-encoding*. In
+v2, after each layer the dense update was compressed back into a named sparse list.
+- Performance critic: re-encoding is a sparse-coding inference problem, ~40× a dense layer for a full encoder, and
+  lossy in our regime.
+- Observability critic: re-encoding makes names *gauge-dependent*. Many different lists fit the same vector, so
+  "which features are active" is partly arbitrary, and a cipher could hide in the choice of list.
+
+**The first-principles question:** *why decode at all?* We decoded because we wanted the state "in named terms".
+But a name can come from **provenance** instead of decoding. If every write into the residual comes from a logged
+decision (unit u fired with value g; head h moved position j's content with weight w), then the residual is
+*exactly* the sum of named writes, by bookkeeping, with no inference step. Many lists fit one vector, but only one
+**history** produced it. The ledger is exact, unique, and costs nothing to keep, because it's derivable on demand
+from the log.
+
+**What that does to the architecture.** It becomes a wide-sparse (PEER/MoE-style) transformer whose nonlinearities
+are all logged and grid-valued. That is much closer to designs known to perform, so v1/v2's bottleneck risks
+disappear.
+
+**Is this still "radically different"?** The radical content has moved from the substrate into the **objective and
+the audit**:
+- description pressure on the interaction graph;
+- a fixed description language with an independent interpreter and a held-out second language;
+- completeness defined as information the *reader* can't see at their budget;
+- a planted-smuggler protocol that tests the tests.
+
+Two critique rounds pushed us here for a principled reason. Performance constraints pull the substrate toward what
+already works, so **the cheapest place to buy observability is at the nonlinearities and in the loss, not in the
+residual.** The whole program reduces to one empirical curve: *tax vs frontier as the pressure λ varies*, measured
+against a dense model that gets the same pressure.
+
+**A self-correction before round 3.** I had written that the dense residual "carries nothing beyond (input, log)"
+by the data-processing inequality. That is true of *any* deterministic model, so it is vacuous. The real property
+is narrower: given the log, every residual and score is a **fixed linear combination of logged scalars**, with no
+further nonlinearity. That is what makes attribution exact. Fixed in the doc.
+
+**Round-2 findings not adopted, with reasons:**
+- *Sparse-write units* (each unit writes 8–16 named dictionary features). Superseded: writer provenance names
+  writes with no feature-assignment structure to learn.
+- *A coherence limit on co-active dictionary features.* Nothing is decoded any more, so there's nothing for it to
+  protect.
