@@ -282,3 +282,39 @@ further nonlinearity. That is what makes attribution exact. Fixed in the doc.
   writes with no feature-assignment structure to learn.
 - *A coherence limit on co-active dictionary features.* Nothing is decoded any more, so there's nothing for it to
   protect.
+
+---
+
+## 2026-10-24 — Critique round 3 (v2.2): nothing fatal; the stopping point on paper
+
+Both critics independently reported **no fatal issues** in the Ledger Transformer. Their major items were specific
+and fixable, and every one was adopted (`DESIGNS.md` §12, v2.1→v2.2). Three of them taught something general.
+
+- **Hidden couplings live wherever a decision depends on *other* units' values, not on edges.** Top-k competition
+  (whether u fires depends on everyone else's scores) and normalization (the gain depends on every write's
+  cross-terms) are both like that. A description language built from edges can't express either. So:
+  - firing is decided by each unit's own threshold, with top-K kept only as a logged, described compute cap;
+  - the norm becomes a described node.
+  Lesson: **check every operation for "depends on the whole state" couplings**, not just for nonlinearity.
+- **Any learned decoder is the wrong judge of hidden information.** A weak one sees nothing. A strong one learns
+  the model. Neither can read a keyed code. The only complete decoder of what affects behavior is *the model
+  itself*. So completeness becomes causal: resample everything the reader can't see, from matched contexts, and
+  measure how much the output moves. Done per sequence, because the realistic smuggler is slow and cumulative
+  (0.1 bit/token in the KV cache is about 400 bits over 4k tokens), not loud.
+- **Bound the flow, not the work.** Capping style-unit *firings* would have re-created round 1's planner/voice tax,
+  since wording is most of the compute. The risk is style *leaking into content*, so only that flow is capped. This
+  mirrors integrity models in computer security: low-integrity sources may act freely, but may influence
+  high-integrity decisions only through a narrow, audited channel.
+
+**Why stop critiquing here.** The rounds converged:
+- round 1: fatal flaws in the framing;
+- round 2: major flaws in one block (re-encoding), removed by the ledger;
+- round 3: no fatal flaws, and specific major refinements.
+
+What remains is empirical and can't be settled on paper:
+- the λ curve (is there a pressure level with a small tax and a big explanation gain over a dense model given the
+  same pressure?);
+- the smuggler floor.
+
+Further paper rounds would mostly re-check edits. The next information has to come from experiments, starting
+with T-A0 stage 1.

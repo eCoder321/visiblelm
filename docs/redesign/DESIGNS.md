@@ -1,8 +1,9 @@
 # Redesign: a language model that is both performant and observable
 
-**Status: v2.1 (2026-10-24), after two critique rounds** by an independent performance skeptic and an observability
-skeptic. Every change, with the finding that forced it, is in the refinement history (§12).
-- Earlier versions: v1 (`e45149f`), v2 (`742af31`).
+**Status: v2.2 (2026-10-24), after three critique rounds** by an independent performance skeptic and an
+observability skeptic. Round 3 found **nothing fatal**. Its major items are integrated here. Every change, with the
+finding that forced it, is in the refinement history (§12).
+- Earlier versions: v1 (`e45149f`), v2 (`742af31`), v2.1 (`6fa7d0a`).
 - Reasoning trail: `THINKING-LOG.md`.
 - Prior-art claims marked *(verify)* are from memory.
 
@@ -32,7 +33,8 @@ is linear.
 **The v2.1 design: the Ledger Transformer.** The residual stream stays dense, as in a transformer, but **every write
 into it comes from a logged decision**: a unit firing, or an attention head selecting sources. Each logged value
 sits on a declared 8-bit grid. So the stream is, by construction, an **exact ledger of named writes**. Nothing is
-decoded, so there are no ambiguous names and no bottleneck. Architecturally this is close to known-performant
+decoded, so every contribution has a *unique* attribution and there is no bottleneck. Attribution is not meaning:
+what a write *means* is still its in-edge graph, which is C4's job to keep short. Architecturally this is close to known-performant
 wide-sparse models (PEER / mixture-of-experts). On top of it sit:
 - training pressure toward short descriptions;
 - a fixed description language run by an independent interpreter;
@@ -54,8 +56,10 @@ wide-sparse models (PEER / mixture-of-experts). On top of it sit:
 - C1 against dense is a FLOP claim. Against the PEER baseline, wall-clock is comparable by construction (same
   gathers). A GPU kernel microbenchmark is flagged for when a GPU is available.
 
-**The tax is a function of description pressure λ.** The deliverable is the Pareto curve of (tax, frontier) over λ:
-"at ≤ 10% tax, how much better is the frontier than the control?"
+**The tax is a function of description pressure λ, plus a fixed overhead.** The overhead is the cost of
+computing the pressure term and running clonal selection, so the curve has a nonzero intercept as λ → 0⁺. The style
+budget's tax is measured as its own ladder rung. The deliverable is the Pareto curve of (tax, frontier) over λ: "at
+≤ 10% tax, how much better is the frontier than the control?"
 
 ### Level 1: hygiene
 Necessary, **not sufficient**. A logged dense model passes these too.
@@ -64,7 +68,7 @@ Necessary, **not sufficient**. A logged dense model passes these too.
 |---|---|
 | H1 | **Bit-exact replay.** An independent executor reproduces the log bit-exactly. Canonical order, hash-chained log, **exhaustive** re-check of every logged selection. Retrieval and product-key search are deterministic algorithms that are part of the spec, so there is no approximate-nearest-neighbour slack. |
 | H2 | **The ledger balances exactly.** Every residual vector equals the sum of its logged writes, in fixed accumulation order. Every pre-activation score equals the sum of its per-write terms. Grid rounding is recorded in a rounding ledger. |
-| H3 | **Every logged scalar is on its declared grid at inference.** That covers unit activations, attention weights, norm gains and retrieval scores. The dense residual is *derived*, not logged. Given the log, every residual vector and every score is a fixed linear combination of logged scalars times weight vectors, with **no further nonlinearity**, and that is what makes attribution exact. (Saying it "carries nothing beyond the input and the log" would be vacuous: that is true of any deterministic model.) |
+| H3 | **Every logged scalar is on its declared grid at inference.** That covers unit activations, attention weights, norm gains and retrieval scores. Attention weights use a **log-spaced (float8-style) grid**, so small averaging weights (≈ 1/T) don't silently round to zero. The dense residual is *derived*, not logged. Given the log, every residual vector and every score is a fixed linear combination of logged scalars times weight vectors, with **no further nonlinearity**, and that is what makes attribution exact. (Saying it "carries nothing beyond the input and the log" would be vacuous: that is true of any deterministic model.) |
 | H4 | **Interpreter correctness.** At full description budget the independent 𝓛 interpreter reproduces the model within the description-weight quantization error. This is a check on the *interpreter*, not on observability. |
 
 **Not claimed:** the log's cardinality as a meaningful bound. At realistic sizes the log has as many bits as a
@@ -81,8 +85,13 @@ A dense model with logging must **fail** these, and every test runs on that cont
   - attention heads, per layer;
   - output logits.
 - **Unit description:**
-  - an activation function from a fixed menu, with a b-bit threshold;
+  - an activation function from a fixed menu;
+  - a **per-unit b-bit threshold**: firing depends only on the unit's own in-edges, so no edge-less competition;
   - in-edges `(source node [, via head h], b-bit weight)`.
+- **Cap-binding node:** whenever the top-K compute cap binds (a unit above its threshold is not computed), the
+  competitor set is logged and described explicitly.
+- **Norm node:** RMSNorm's gain is described as its top-m writer cross-terms plus a constant. A fixed per-layer
+  scale is the alternative, tested on the ladder.
 - **Head description:**
   - score rule: `(query node, key node, weight)` pairs, plus a piecewise-constant kernel on log-distance bins;
   - selection rule: top-k or entmax-α.
@@ -100,7 +109,7 @@ A dense model with logging must **fail** these, and every test runs on that cont
 | # | Criterion | Test (thresholds provisional; calibrate on the first real-text run) |
 |---|---|---|
 | C2 | **Faithful** (sufficiency *and* necessity) | Specify interventions in description terms: random single, **pairwise**, and off-distribution. The effect predicted by the interpreter must match the model's: ≥ 95% agreement in top-1, and KL within tolerance. Necessity is tested directly: remove a node the description says matters, and the predicted degradation must occur. |
-| C3 | **Complete at the reader's budget** | *Residual information* R(B): the output-relevant bits the description at budget B does not expose. Estimated as the cross-entropy gap between a decoder trained on the **full log** and one trained on the **description-visible state at budget B**. Target R(page budget) ≤ 0.05 nats per token. Plus the **canary protocol** (§11). |
+| C3 | **Complete at the reader's budget** | *Residual information*, defined causally with the **model as its own decoder** (in the spirit of causal scrubbing *(verify)*): R(B) = E KL(model(x) ‖ model(x with every write *not* exposed at budget B resampled from contexts matched on the exposed state)). Measured **per token and per sequence**, so effects carried forward in the KV cache count. Also on **trigger-searched inputs**, since average-case misses rare triggers. Trained decoders are used only as canary detectors, and **nothing is ever trained against R(B)**. Target: R(page budget) ≤ 0.05 nats/token (provisional). Plus the **canary protocol** (§11). |
 | C4 | **Legible** | **Explanation frontier.** Fidelity is KL (and TV) between the model's and the interpreter's full output distributions. Margin-only is out. **Global:** fidelity vs total description bits. **Local:** fidelity of one decision vs bits read. Which edges to keep is chosen by the interpreter's own KL reduction on a calibration split; for local explanations, by patching from matched contexts. Selection-order variance is reported. Report the **median and worst decile** by token type, plus cancellation ratio Σ\|c\|/\|Σc\| and tail mass. Targets: the global frontier dominates the control by ≥ 10× fewer bits at equal KL, **in both 𝓛 and 𝓛′**. The **control gets the same description-pressure fine-tuning**, so A must beat a dense model that was also taught to 𝓛. The local median is ≤ 2 kbits (about a page) at ≤ 0.1 nats KL. **Required report:** an independent natural-language simulator, never used in training, predicts node activity from labels alone. DL is not the same as comprehension, so this is measured too. |
 | C5 | **Checkable** | H1–H4, plus a written trust set. A checker trusts the weights, the interpreter, the test data, floating-point determinism and log integrity. It does **not** trust the model's explanations or labels. |
 | C6 | **Predictive** | Third-party random edits to **any** node, edge or entry. The change predicted from the descriptions holds ≥ 90% of the time. Failures among pruned units are reported too. |
@@ -137,7 +146,7 @@ The redesign keeps the first list and fixes the second via (i)–(iii) in §0.
 
 | Performance needs | Observability fears | Resolution |
 |---|---|---|
-| N ≫ d features per position (superposition) | unnamed, entangled features | **Ledger.** Keep the dense residual: superposition is allowed. Every *write* is named by its writer (unit, head, embedding) and logged. A unit's reading of the residual splits exactly over writes: `z_u = Σ_writes value · ⟨key_u, v_write⟩`. "Features" are writes, identified by provenance, never decoded, so they are unambiguous. |
+| N ≫ d features per position (superposition) | unnamed, entangled features | **Ledger.** Keep the dense residual: superposition is allowed. Every *write* is named by its writer (unit, head, embedding) and logged. A unit's reading of the residual splits exactly over writes: `z_u = Σ_writes value · ⟨key_u, v_write⟩`. "Features" are writes, identified by provenance, never decoded, so attribution is **unique**. Meaning is not: a write is read by every later key, so its fan-out is dense by default, and making it short is C4's job. |
 | nonlinearity | mixing | **Every nonlinearity is a logged decision on a declared grid.** Linear algebra in between is exact accounting. |
 | graded magnitudes | smuggled bits | **Quantize the decisions, not the residual.** 8-bit logged activations and weights with per-unit scales, trained with QAT. The residual is accumulated exactly in a fixed order. Small updates are small activations, not sub-LSB residual increments. |
 | millions of contributions | unreadable | **Explanation frontier + description pressure.** Short descriptions are trained for and measured, with KL fidelity, worst-decile reporting, and a held-out language. |
@@ -188,11 +197,12 @@ Parallels and prior art for unchanged blocks are in the v1 table (git `e45149f`)
 | BB | Block | v2.1 specification | Status |
 |---|---|---|---|
 | 1 | **Ledger residual** *(replaces the explicit re-encoded bus)* | Dense residual = the exact sum of logged writes, in fixed order. Each write = (writer id, logged scalar on a grid, writer's fixed output vector), or a relayed write via (head, source position, logged weight). The ledger is not materialized. It is *exactly derivable* from the log plus weights, on demand. | new (combination) |
-| 2 | **Unit pools** | PEER-style single-neuron or small units. Query linear in the residual, so the product-key score `⟨q, [k1_i; k2_j]⟩` is exactly decomposable over writes. Product-key top-k is **exact** for this factorized score, so it is a *defined* selection, not an approximate prefilter. Activations are 8-bit and logged. Near-misses (the next m candidates) are logged. | exists (PEER) + logging |
-| 4 | **Attention** | Dense low-rank QK/OV. Scores split exactly over (query write, key write) pairs. Per-head top-k (copy/induction) or entmax (averaging). Weights 8-bit and logged; dropped mass logged. | exists + logging |
+| 2 | **Unit pools** | PEER-style single-neuron or small units. Query linear in the residual, so the product-key score `⟨q, [k1_i; k2_j]⟩` is exactly decomposable over writes. **Firing = score above the unit's own threshold** (JumpReLU-style). Product-key top-K is exact for the factorized score, but it is only a **compute cap**: cap-binding events are logged, described, and kept rare by a target rate. Activations are 8-bit and logged. Near-misses are logged. | exists (PEER) + logging |
+| 4 | **Attention** | Dense low-rank QK/OV. Scores split exactly over (query write, key write) pairs. Per-head top-k (copy/induction) or entmax (averaging). Weights on a log-spaced 8-bit grid, logged; dropped mass logged. | exists + logging |
+| 8 | **Norm as a described node** | RMSNorm gain logged, and described in 𝓛 by its top-m writer cross-terms plus a constant. Ladder alternative: a fixed per-layer scale. | new (trivial) |
 | 7 | **Declared precision** | Hard 8-bit grids with per-unit scales for every logged scalar, trained with QAT. 4-bit only as an experiment. | exists (QAT) |
-| 10 | **Description pressure + clonal selection** | Loss term: L1/entropy on the per-write contribution distribution of each *active* score. This is computed only for active pairs, so it is cheap, and it pushes the interaction graph to be sparse. Clonal selection: units with low fidelity-per-bit are recycled. Credit is averaged over random removal orders, so redundant-but-causal units aren't killed by order effects. | partial |
-| 15 | **Content/style typing** | Units typed *content* or *style*. **Architectural style budget:** at most L0_style style-unit firings and B_style logged bits per sentence, enforced by a capped top-k and logged. Non-interference test: vary style units and hidden context with content units fixed; the content of the output, as parsed by an independent parser, must not change. Leakage through style is bounded by B_style. | new |
+| 10 | **Description pressure + clonal selection** | Loss term: **gross contribution mass outside the top-m writers** of each active score. It is scale-free, so it can't be satisfied by shrinking keys and values, and it doesn't force single-writer chains. It is the local-frontier quantity itself. Computed on an **unbiased subsample** (1/8–1/16 of tokens, a random subset of active units), over relays plus top-m contributors. Description length *to full grounding* is not in the per-step loss (that would invite relay-routing games). It enters through **clonal selection**, which runs the offline frontier evaluator, recycles low fidelity-per-bit units, and averages credit over random removal orders. | partial |
+| 15 | **Content/style typing** | Units typed *content* or *style* by a periodic audit: a unit is content if ablating it changes the independently parsed content of outputs. **The budget bounds information *flow*, not wording work.** Style units may fire freely to shape the surface of the current tokens, which are public anyway. Their writes into *content-unit* scores pass through a capped, logged channel of ≤ B_style bits per sentence, an integrity-style flow rule (in the spirit of the Biba model). Non-interference test as before. The cap gets its own ladder rung with a measured tax. | new |
 | 12 | **External entries** | Units with provenance (text, source, date), stored outside the parameters. Retrieved by the same deterministic product-key selection. Frozen, versioned keys. | partial |
 | 17 | **𝓛, 𝓛′, interpreter, frontier** | As §1. An independent implementation. | new |
 | 18 | **Canary protocol** | §11 | new |
@@ -208,12 +218,12 @@ grid-valued decision. Train the resulting interaction graph to be short. Prove i
 and a planted smuggler.*
 
 ### 7.1 Anatomy (per layer)
-1. **Norm:** RMSNorm gain `s_t`, one logged 8-bit scalar.
+1. **Norm:** RMSNorm gain `s_t`, one logged 8-bit scalar, described as a norm node (BB8).
 2. **Attention:** per head, scores (dense, exactly decomposable over write pairs), then top-k or entmax, then
    logged 8-bit weights, then the OV write. Each relayed write is named (head, source position, the source's
    writes).
-3. **Unit pool:** product-key query, then exact top-k_u (logged ids), then 8-bit activations (logged), then writes
-   `g_u · v_u`.
+3. **Unit pool:** product-key query, then per-unit threshold (top-K only as a logged compute cap), then 8-bit
+   activations (logged), then writes `g_u · v_u`.
 4. **Residual:** the exact sum of all writes, in a fixed order.
 5. **Readout:** logits = unembedding of the residual, decomposable over writes.
 
@@ -225,7 +235,11 @@ and a planted smuggler.*
   - logging: negligible;
   - 8-bit activations with QAT: near-free in LLMs, *(verify)* W8A8-type results;
   - sparse attention: measured by D3.
-- **The real tax is description pressure λ.** It is tunable, and the deliverable is the (tax, frontier) curve.
+- **The real tax is description pressure λ**, plus a fixed overhead for computing it. The deliverable is the (tax,
+  frontier) curve. This *relocates* the old capacity question rather than removing it. λ penalizes reads spread
+  over many writers, and spread-out superposed reads are exactly where dense capacity per FLOP comes from.
+  Weight-sparse transformers reportedly pay a large compute cost for sparsity *(verify)*. Whether a soft,
+  top-m-mass pressure is cheaper is the open question.
 - **Wall-clock:** the same gathers as the PEER baseline, so comparable to it. Against dense, the C1 claim is a FLOP
   claim until kernels exist.
 
@@ -233,7 +247,7 @@ and a planted smuggler.*
 
 | Criterion | Mechanism | Status |
 |---|---|---|
-| C1 | PEER/MoE-class architecture + cheap logging + tunable λ | **Open, empirical**, but the risk is now concentrated in one knob (λ), not in the architecture |
+| C1 | PEER/MoE-class architecture + cheap logging + tunable λ | **Open, empirical.** The risk is concentrated in λ (the capacity-vs-sparse-reads question in soft form), plus a fixed overhead and the style-flow cap |
 | H1–H4 | Ledger, decision log, grids, exhaustive re-checks, hash chain, interpreter check | **Guaranteed** (hygiene) |
 | C2 | Description-level interventions judged by the interpreter, sufficiency + necessity | **Measured** |
 | C3 | Residual-information decoders at reader budget + canary protocol | **Measured** |
@@ -273,7 +287,9 @@ Parametric knowledge sits in visible units and is allowed. External entries add 
 ## 9. Content and style (C, v2.1)
 
 Inside A, units are typed content or style.
-- **The style budget is architectural**: L0_style, B_style per sentence. It is not just a tag.
+- **The style budget is architectural and bounds flow.** Style units shape wording freely, but they reach content
+  decisions only through a ≤ B_style-bit-per-sentence logged channel. It is not just a tag, and it is not a cap on
+  wording work.
 - The **non-interference test** uses an independent parser and paraphrase-invariance checks.
 - Content-unit firings are themselves logged and described. "Which facts to mention" is a visible content decision,
   not a covert channel.
@@ -308,6 +324,8 @@ content-typed units and provenance entries.
 
 **Compute reality.**
 - 4 CPU cores. HuggingFace is blocked; GitHub raw and PyPI are reachable.
+- A ~6M-parameter model on 50M tokens is ≈ 2×10¹⁵ FLOP, about 5–10+ hours per run here. Hence T-A0's staged,
+  paired, minimal design (≈ 10–15 runs, not 150).
 - Corpus: public-domain books mirrored on GitHub, a CPython-stdlib code slice, tiny-shakespeare as a sanity
   baseline. Target 20–50M tokens.
 - Ratio-matched sizes, ≥ 3 seeds, IsoFLOP fits. Never read a single scale as a scaling claim. Real scaling needs a
@@ -318,8 +336,8 @@ content-typed units and provenance entries.
 | **D0** | **Control frontier** | The bar A must beat | Small dense LM (d≈256, 4 and 8 layers). Per-layer transcoders, converted to 𝓛 and 𝓛′. Also the same model after description-pressure fine-tuning. | Gives the control curve | — |
 | **D2** | **8-bit decisions through depth** | Precision tax, cumulative | PEER-ized small LM: activations, attention weights and gains on 8-bit grids with QAT, at 4/8/12 layers | ≤ 2% tax at b=8; grows slowly with depth | > 5% at b=8 → rethink scales |
 | **D3** | **Sparse attention** | Attention tax | Dense LM, post-hoc then fine-tuned top-k/entmax, k ∈ {4…64}, context ≥ 512 | Copy/induction heads fine at small k; averaging heads need entmax | Informs the per-head policy |
-| **T-A0** | **Ladder, risk-first** | Where the tax lives, and what λ buys | dense → +PEER pool (dense residual) → +8-bit logged decisions → +sparse attention → **+λ sweep** {0, λ₁, λ₂, λ₃} + clonal selection. 3 seeds, 2 depths, 2–3 sizes. Frontier (𝓛 and 𝓛′), R(B) and stability at every step. | Steps before λ: ≤ 10% combined vs PEER. The λ sweep gives a curve where at ≤ 10% tax the frontier is ≥ 10× better than D0's pressured control. | Kill as §7.4 |
-| **Canary** | **Test the tests** | Do the audits catch smugglers? | See protocol below | Naive smugglers are caught at ≥ 16 bits/token. Audit-aware smugglers set the real detection floor, which we report. | Floor > 16 bits/token → fix the audit before any C3 claim |
+| **T-A0** | **λ first, then the rest** (a *necessary* test only) | Does a λ exist with a small tax and a big frontier gain? | **Stage 1 (the risk):** dense → PEER (dense residual) → PEER + λ ∈ {λ₁, λ₂, λ₃} with clonal selection. One size, one depth, **2 seeds with paired data order** (seed noise ≈ 0.02 nats is comparable to a 10% tax). **Stage 2, at the chosen λ:** + 8-bit logged decisions (D2's grids), + sparse attention (D3's policy), + style-flow cap, + norm node vs fixed scale. **Stage 3 (trend):** λ\* (the λ that gives a fixed frontier ratio) at 3 widths. It must not grow with d. Frontier (𝓛 and 𝓛′), R(B) and stability throughout. | At some λ: tax ≤ 10% vs PEER and frontier ≥ 10× better than D0's pressured control. λ\* flat in width. | Kill as §7.4. A pass is *not* a scale claim: tiny models on small corpora are easy to describe. Confirmation needs a GPU. |
+| **Canary** | **Test the tests** | Do the audits catch smugglers? | See protocol below | Floor ≤ 0.1 bit/token and ≤ 32 bits/sequence at 4k context (provisional) | Floor > 1 bit/token, or any undetected rare-trigger smuggler → fix the audit before any C3 claim |
 | T-A2 | Gating toy | AND-gating vs linear threshold | m=4 AND task + switching testbed | Log-domain product ≥ linear on cross-firing | Drop BB3 if not |
 | T-A3 | Typed operators | Equivariance (L5) | Switching testbed + numeric tokens in the corpus | Held-out arithmetic ~0 → ≥ 0.9 | < 0.5 → inspect selection |
 | T-B | Library | Citation causality; hidden memory | bioS-style synthetic biographies *(verify)*, plausible edits, edit-detection probe, relearning test | Reliance ≥ 90%, probe at chance | §8 kill |
@@ -329,19 +347,28 @@ content-typed units and provenance entries.
 1. **Channel catalogue, one smuggler per channel:**
    - unit-id combinations;
    - low bits of 8-bit grids;
-   - near-miss and tie choices;
+   - near-miss, tie and **cap-binding competition**;
    - attention weights and selection;
+   - the **norm gain**;
    - write-vector components outside the described edges (the "unexplained tail");
    - retrieval choice;
-   - style units (capacity should be ≤ B_style).
-2. **Capacity ladder.** Random payloads independent of the data, k ∈ {1, 4, 16, 64, 256} bits/token.
-3. **Audit-aware smugglers.** Trained to minimize KL loss, frontier degradation and R(B) while still transmitting.
-   A naive smuggler proves little.
-4. **Stated detector.** The R(B) decoder gap: full-log decoder vs description-visible decoder. Plus a per-channel
-   decoder. The false-positive rate is fixed at 1% on a clean null model.
-5. **Payload recovery + host cost.** The smuggler must actually recover its payload. Report the host's NLL cost.
-   Result = the **minimum undetectable payload per channel** at a fixed false-positive rate. That is the honest
-   C3 number.
+   - the style→content flow (capacity should be ≤ B_style).
+2. **Smuggler types:**
+   - per-token;
+   - **cumulative-state**: low-rate bits accumulated across the KV cache;
+   - **rare-trigger**: a large payload on about 1 in 10⁴ tokens;
+   - **keyed-code**: shares a secret key with its receiver, so no bounded decoder can read it. Without a shared
+     secret, a smuggler is only a naive adversary.
+3. **Capacity ladder.** Random payloads independent of the data, k ∈ {0.01, 0.1, 1, 4, 16} bits/token.
+4. **Audit-aware smugglers.** Trained to minimize host KL loss, frontier degradation and decoder-detectable
+   signal while still transmitting.
+5. **Stated detector: the causal R(B).** The model is its own decoder, so a keyed code that changes behavior is
+   caught when its carrier writes are resampled. It is applied per token, **per sequence**, and on trigger-searched
+   inputs. Trained decoders serve as a secondary, per-channel detector. The false-positive rate is fixed at 1% on a
+   clean null model.
+6. **Payload recovery + host cost.** The smuggler must actually recover its payload. Report the host's NLL cost.
+   Result = the **minimum undetectable payload per channel, in bits per token and bits per sequence**, at a fixed
+   false-positive rate. That is the honest C3 number.
 
 **Shared metrics for every test:**
 - tax vs dense and vs PEER/MoE;
@@ -393,6 +420,21 @@ content-typed units and provenance entries.
 | 17 | Gather cost is inherent; there's no GPU benchmark (performance) | Stated plainly: comparable to the PEER baseline, a FLOP claim vs dense. GPU microbenchmark flagged. | No GPU in this environment. |
 | 18 | Approximate-NN slack at library scale (observability) | Retrieval is a deterministic algorithm in the spec, re-run by the checker | — |
 
+### v2.1 → v2.2 (round 3: both critics report nothing fatal)
+
+| # | Finding (critic) | Change | Why |
+|---|---|---|---|
+| 1 | Top-k competition couples units with no edge in 𝓛: ablating v flips u. That breaks C2/C6 and makes H4 impossible (observability) | **Per-unit thresholds** decide firing. Top-K is only a logged compute cap; cap-binding events are described and kept rare. | Firing should depend on a unit's own in-edges. Competition, where it exists, must be visible. |
+| 2 | The RMSNorm gain is quadratic in all writes, with no node in 𝓛 (observability) | Norm becomes a described node (top-m cross-terms plus a constant). Fixed per-layer scale tested on the ladder. Added to the canary catalogue. | — |
+| 3 | R(B) via decoders depends on the decoder class, is blind to keyed codes, is average-case, and is gameable (observability) | **Causal R(B)**: resample unexposed writes from matched contexts, with the model as its own decoder. Per sequence, plus trigger search. Never trained against. | Anything that affects behavior has to pass through the model, so the model is the only complete decoder. |
+| 4 | The canary was mis-scaled (16 bits/token is catastrophic) and missed low-rate cumulative, rare-trigger and keyed channels (observability) | Ladder from 0.01 bits/token. Per-sequence detection. Cumulative, rare-trigger and keyed smugglers. Floors reported per token and per sequence. | The realistic risk is slow, sparse and keyed, not loud. |
+| 5 | "No ambiguous names" oversold: attribution is unique, meaning isn't (observability) | Wording narrowed in §0 and §3 | — |
+| 6 | The style budget as a cap on style firings is a hidden planner/voice tax (performance) | Budget bounds the **style→content flow** only, with its own ladder rung | Wording work is most of the compute. The risk is content leaking through style, not style itself. |
+| 7 | The pressure term isn't cheap (all active pairs ≈ several × a layer's FLOPs), raw L1 is scale-degenerate, entropy forces rigid chains, and relays can game it (performance) | Scale-free "mass outside top-m" penalty, unbiased subsampling, full-grounding DL only via clonal selection, fixed overhead counted in the tax | Penalize exactly the local-frontier quantity, at a sampled cost. |
+| 8 | 8-bit linear attention grids silently zero averaging weights (performance) | Log-spaced (float8-style) grid | — |
+| 9 | "The risk is one knob" relocates the capacity question rather than removing it (performance) | Claim softened; weight-sparse transformer costs noted | Honest framing. The kill criterion (< 3× vs a pressured control) stands. |
+| 10 | The ladder put the only real risk (λ) last, and the full grid is ~150 runs (weeks on CPU) (performance) | λ first. One size and depth, 2 paired seeds. D2/D3 only at the chosen λ. A λ\* width trend. T-A0 framed as a necessary test only. | Spend compute where the risk is. |
+
 **Not adopted:**
 - **Sparse-write units with s ≈ 8–16 named features each** (performance round 2, fix (a)). The ledger goes further:
   writes are already named by their writer, with no feature-assignment structure to learn.
@@ -402,10 +444,12 @@ content-typed units and provenance entries.
 ## 13. What remains open (honest list)
 
 Every criterion has a mechanism and a falsifiable test, and two critique rounds' findings are resolved on paper.
-What paper can't settle:
+After three rounds, neither critic found a fatal issue, and every major item has an adopted fix. What paper
+can't settle:
 1. **The λ curve.** Does a λ exist with ≤ 10% tax and ≥ 10× frontier advantage over a *pressured* dense control,
-   in both 𝓛 and 𝓛′? That is the single scientific question the whole design now reduces to. T-A0 answers it at
-   small scale.
-2. **The canary floor.** How many bits/token can an audit-aware smuggler hide? Unknown until measured.
+   in both 𝓛 and 𝓛′? This is the old capacity-vs-sparse-reads question in soft form, and it is the scientific
+   question the whole design reduces to. T-A0 is a necessary test of it at small scale. Sufficiency needs scale.
+2. **The canary floor.** How many bits per token and per sequence can a keyed, audit-aware, cumulative or
+   rare-trigger smuggler hide from the causal R(B)? Unknown until measured.
 3. **Scale transfer and wall-clock.** These need a GPU.
 4. **C7** is parked.

@@ -215,6 +215,35 @@ v2 (`docs/redesign/DESIGNS.md`) therefore:
 The test plan now starts with three cheap diagnostics on one small dense model trained on real text: the post-hoc
 bus tax, the precision tax and the attention tax. Then a from-scratch ladder adds one constraint at a time.
 
+
+## Step 15 — two more critique rounds: the Ledger Transformer (design v2.2)
+
+**Round 2.** Both critics independently found v2's weak block: re-compressing the model's state into a named list
+after every layer. It was costly, lossy, and made names ambiguous, since many lists fit one vector. The fix came
+from asking why we decode at all. A name can come from **provenance** instead. If every write into the residual
+stream comes from a logged decision (a unit firing, an attention head choosing sources), the stream is *exactly*
+the sum of named writes by bookkeeping. Many lists fit one vector, but only one history produced it.
+
+**What that makes the model.** Architecturally, a wide-sparse (PEER/mixture-of-experts-style) transformer whose
+every nonlinearity is logged on an 8-bit grid, which is close to designs known to perform. The novelty moves into:
+- the training objective: pressure toward short descriptions;
+- the audit: a fixed description language run by an independent interpreter, a held-out second language, a dense
+  control given the same pressure, and planted smugglers.
+
+**Round 3.** No fatal issues. The major refinements:
+- per-unit firing thresholds, so competition between units isn't a hidden coupling;
+- normalization as a described node;
+- completeness measured causally, with the model as its own decoder;
+- a smuggler test scaled down to 0.01 bits/token, with slow, rare-trigger and keyed smugglers;
+- a style cap on style→content *flow* only;
+- a cheaper, scale-free pressure term;
+- a compute-feasible test plan that puts the one real risk first.
+
+**Where this leaves the program.** One empirical question remains, and paper can't answer it. Is there a pressure
+level λ with ≤ 10% performance tax at which the model's explanations are ≥ 10× shorter, for equal fidelity, than a
+dense model given the same pressure and described by the best post-hoc tools? Next experiment: T-A0 stage 1
+(dense → PEER → PEER + three λ values, on real text, CPU scale; a necessary test, not a scale claim).
+
 ---
 
 ## What this log is for
