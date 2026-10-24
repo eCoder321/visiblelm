@@ -1,3 +1,5 @@
 __pycache__/
 *.pkl
 results/*/log.txt
+data/
+results/lm/*/ckpt*

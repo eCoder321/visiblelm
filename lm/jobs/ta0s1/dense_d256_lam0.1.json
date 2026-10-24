@@ -1,0 +1,1 @@
+{"name": "ta0s1_dense_d256_lam0.1", "seeds": [0, 1], "cfg": {"mlp": "dense", "d": 256, "lam": 0.1, "press_frac": 0.0078125}}

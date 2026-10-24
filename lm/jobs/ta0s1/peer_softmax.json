@@ -1,0 +1,1 @@
+{"name": "ta0s1_peer_softmax", "seeds": [0, 1], "cfg": {"mlp": "peer", "gate": "softmax"}}
