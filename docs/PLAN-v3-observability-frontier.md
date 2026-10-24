@@ -321,7 +321,11 @@ directly opposes any gradient trying to teach them `+1`/`-1`/`+2`. If gradient s
 hard firing signal) is weak relative to this pull, the regularizer wins outright — consistent with the tables being
 *exactly*, not approximately, identity.
 
-### E2-redux — does relaxing the identity regularizer let arithmetic get learned?  ☐
+### E2-redux — does relaxing the identity regularizer let arithmetic get learned?  ☑ **REFUTED** (2 of 3 seeds), 2026-10-24
+> Result: iid NLL unchanged or worse, rulebook 8× larger. Held-out arithmetic is ~0% for *every* model, dense
+> included, so a lookup representation can't generalize to unseen arguments. This plan is superseded by
+> `docs/redesign/DESIGNS.md` (see `docs/RESEARCH-LOG.md` steps 11–13).
+
 The first genuinely training-based experiment in the E-series. Reduce or anneal `l1_table` and check whether
 succ/pred/pls2 accuracy improves while copy-mode accuracy (whose tables *should* stay identity) does not regress.
 Requires actual training runs (hours), currently blocked on worker availability (rate limit resets 8:40pm UTC) —

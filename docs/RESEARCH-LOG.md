@@ -131,6 +131,69 @@ from the readout should measurably improve accuracy on succ/cpy2/cpy3/rept speci
 little or no improvement — a directly testable prediction, including an explicit prediction of where it will *not*
 generalize. Full detail: `docs/tasks/E1c-report.md`.
 
+## Step 10 — E1d: ablating the "bad" rules made things worse (refuted, informatively)
+
+Ran by the PI after the worker hit a rate limit. The first attempt gave a bit-identical null result, which was a red
+flag, not a finding. The ablation had missed the second pathway (`Gd` → output groups) by which rules vote. After
+fixing it: **removing the identity-stuck rules made `succ` worse in both seeds where any were selected (0.84→0.77;
+0.82→0.74).** Copy modes did not recover. So the rules are doing real, specific work, but not the "purely spurious
+vote" E1c proposed. With 40+ rules voting per step, a single rule's contribution isn't separable by whole-rule
+ablation. The static fact still stands: the arithmetic tables never moved from identity. Proposed cause: the
+`l1_table` regularizer pulling them back. Full detail: `docs/tasks/E1d-report.md`.
+
+## Step 11 — E2redux (2 of 3 seeds; seed 2 left unfinished): the regularizer was not the cause
+
+Retrained `T2_large` with `l1_table` = 0, everything else identical.
+- **iid NLL did not improve:** 0.785 vs 0.778 (seed 0), 0.970 vs 0.830 (seed 1).
+- The rulebook grew 8× (description length 65k vs 8.4k), because the tables were free to move and spent bits doing
+  so, but arithmetic still wasn't learned.
+- The decisive comparison came from checking the dense baseline on the same metric. **On held-out arithmetic
+  (succ/pred/pls2 applied to a value never seen with that mode), every model scores ~0%, the dense transformer
+  included.** "Arithmetic not learned" was never a cost of observability. Any lookup representation fails this way:
+  a table cell that never appears in training never gets a gradient.
+- Generalizing to unseen arguments needs an operator *shared across values* (shift-by-n on a cyclic code). That is
+  also the most legible representation there is.
+- Two side findings:
+  - The structured model already beats dense out of distribution (shift NLL 1.41 vs 1.84; held-out `cpy3` accuracy
+    0.96 vs 0.50) while losing in distribution (0.78 vs 0.59).
+  - The iid oracle floor is slightly loose. Dense reaches 0.593 vs the oracle's 0.617, because the oracle ignores
+    the rejection sampling that removes held-out events from training-distribution sequences.
+
+Seed 2 was not finished. The user redirected the project before it completed (next step), and the two finished
+seeds agree.
+
+## Step 12 — two kinds of visibility (Graepel, MIT Tech Review, 2026-10-02)
+
+Read "Don't be fooled — LLMs don't reason". It argues for an explicit, inspectable epistemic state plus an
+independent evaluator. Agreed with the user on a distinction:
+- **mechanism visibility** (what the model computed: this project);
+- **epistemic visibility** (what it believes and why: his).
+
+They are complementary. The second is parked, with one constraint: nothing we build may rule it out.
+
+## Step 13 — pivot: from fixing rulenet to redesigning from the goal backwards
+
+The user asked for a radically different approach: start from "as performant as current models *and* observable",
+decompose what must be true, and design candidates that meet every criterion on paper before testing. Output:
+- `docs/redesign/DESIGNS.md`: criteria C1–C7, a requirement tree down to building blocks, and three designs with
+  criterion-by-criterion tables:
+  - A, Glass Box: an explicit sparse named feature bus; every nonlinearity is a logged decision;
+  - B, Library & Clerk: knowledge outside the weights, honest citation enforced by counterfactual edits;
+  - C, Planner & Voice: content planned in the open, wording confined to a bounded, non-interference-tested channel.
+- `docs/redesign/THINKING-LOG.md`: the reasoning, the parallels and the rejected approaches.
+
+The key reframing is that dense models are already *decomposable*. What they lack is a named basis, few active
+terms, and a guarantee the named terms are everything. Every design supplies those three.
+
+The lessons from Steps 1–11 became design inputs:
+- keep values continuous, never binarize (Steps 3–4);
+- declare and enforce magnitude precision (Step 7);
+- use AND-gating instead of weighted sums (Step 9);
+- use equivariant typed operators instead of free tables (Step 11).
+
+First test planned: T-A3 (typed shift operator on the current testbed). Second: T-A0 (does an explicit sparse
+residual cost much on *real* text?), which tests the riskiest assumption in the program.
+
 ---
 
 ## What this log is for
