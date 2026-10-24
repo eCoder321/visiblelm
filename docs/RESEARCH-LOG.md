@@ -244,6 +244,32 @@ level λ with ≤ 10% performance tax at which the model's explanations are ≥ 
 dense model given the same pressure and described by the best post-hoc tools? Next experiment: T-A0 stage 1
 (dense → PEER → PEER + three λ values, on real text, CPU scale; a necessary test, not a scale claim).
 
+
+## Step 16 — the first real-text experiment is built (T-A0 stage 1), waiting for a GPU
+
+The design reduces to one question: does an "explain yourself" pressure buy much shorter explanations at little
+performance cost? The code to test it is in `lm/`, and the brief, with predictions written before any run, is
+`docs/tasks/TA0-stage1.md`.
+
+**What was built:**
+- a pinned 46 MB real-text corpus (prose + Python code);
+- a normal transformer and a specialists (PEER-style) transformer, both recording every write into the residual
+  stream;
+- the pressure term;
+- an evaluator that replays the model from a truncated explanation and measures how far its predictions drift.
+
+**Checked on CPU:**
+- every job type runs end to end;
+- interrupted runs resume;
+- at full budget the replay reproduces the model exactly (KL ≈ 1e-8);
+- the full-size configuration fits in memory (≤ 4.4 GB).
+
+**Fixes made during testing:**
+- a NaN from differentiating a vector norm at zero;
+- an out-of-memory error from computing the dense model's pressure on too many positions.
+
+A full-size step takes 5–10 s on these 4 cores, about 15 hours per run, so the 18 runs go to a GPU.
+
 ---
 
 ## What this log is for
