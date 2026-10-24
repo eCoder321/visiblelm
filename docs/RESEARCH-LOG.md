@@ -194,6 +194,27 @@ The lessons from Steps 1–11 became design inputs:
 First test planned: T-A3 (typed shift operator on the current testbed). Second: T-A0 (does an explicit sparse
 residual cost much on *real* text?), which tests the riskiest assumption in the program.
 
+
+## Step 14 — the designs meet their critics: observability becomes a curve
+
+Two independent critics reviewed the v1 designs.
+- **Observability critic.** v1's "by construction" guarantees were vacuous: a dense model that simply logs its
+  numbers passes them.
+- **Performance critic.** v1's small, re-cut-every-layer working memory would likely starve the model.
+
+Both point the same way. An explanation is a description *shorter* than the thing it explains that still
+reproduces it. So observability is the **explanation frontier** (description length vs fidelity), measured against
+a dense model plus the best post-hoc tools. It is not a yes/no property of the substrate.
+
+v2 (`docs/redesign/DESIGNS.md`) therefore:
+- lets the computation be as large as performance needs (big persistent named bus);
+- hard-quantizes every logged number at inference;
+- trains for short descriptions;
+- folds the library and planner/voice designs into the core model as views rather than separately taxed stages.
+
+The test plan now starts with three cheap diagnostics on one small dense model trained on real text: the post-hoc
+bus tax, the precision tax and the attention tax. Then a from-scratch ladder adds one constraint at a time.
+
 ---
 
 ## What this log is for

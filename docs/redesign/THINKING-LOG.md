@@ -177,3 +177,63 @@ Two independent critics review v1:
 
 Each finding either changes the design (logged here and in the `DESIGNS.md` refinement history) or gets a stated
 reason why not.
+
+---
+
+## 2026-10-24 — Critique round 1 and the v2 turn
+
+Two independent critics reviewed v1 cold. One attacked performance (C1) and one attacked observability (C2–C6).
+Full change table: `DESIGNS.md` §12.
+
+### What each found that I hadn't
+- **Observability critic.** My "by construction" guarantees (faithful, complete, checkable) are passed by a
+  *dense* transformer that simply logs its residual stream. The books balance and replay is exact. So these tests
+  can't tell an observable model from an opaque one. Second, noise injected during training doesn't bound
+  information at *inference*, and the attention weights, gates and norm gain were still full-precision floats.
+- **Performance critic.** A global top-200 bus, cut back every layer, is a depth-wise bottleneck. Post-hoc sparse
+  autoencoders at k=32 on GPT-4 cost about "10× less compute" worth of loss *(verify)*. Also: the right baseline is
+  MoE, not dense.
+
+### The turn
+The two findings point the same way. v1 tried to make the *raw computation* small so it would be readable. That:
+- kills capacity (performance critic);
+- doesn't even buy observability, since raw logs are trivially "complete" (observability critic).
+
+First-principles question: *what is an explanation?* It is a **description shorter than the thing it describes
+that still reproduces it**. A full log is complete but no shorter than the model, so it explains nothing. So
+observability isn't a property of the substrate. It is the **trade-off curve between description length and
+fidelity**: the *explanation frontier*.
+
+This changes the design objective:
+- The substrate can be as large as performance needs (large raw k, persistent bus, general OV maps).
+- It must be (a) in a named basis, (b) exactly accountable with every logged number on a declared grid, and
+  (c) *trained to admit short descriptions*.
+- Observability is then measured as the frontier, against a dense model described by the best post-hoc tools.
+- A cipher, a polysemantic feature or a joint code is no longer a "hidden channel" we must forbid. It shows up as
+  a bad frontier, which is measurable.
+
+An older idea returns in a better form: our early `north_star` executor and "rulebook description length" were
+crude versions of this frontier.
+
+### Smaller turns
+- **B (library) shrinks.** In v2, A's unit pool *is* a readable key→value memory, so knowledge in weights is no
+  longer hidden. The fight to forbid parametric memory (anti-loss, and evadable by edit detection) is unnecessary.
+  B keeps what only an external store gives: provenance, editing, freshness. New optional idea: a **blinded clerk**,
+  with entity ids re-randomized per context, so entity facts *cannot* live in weights.
+- **C (planner/voice) moves inside A.** A separate voice can at best tie a dense model, and a dense voice plus
+  parser can collude on a cipher. Instead, type dictionary features as content or style and test non-interference
+  inside A. A separate dense voice is a fallback, and it must have an **independent** parser.
+- **Principle from the collusion finding:** a *checker* can be opaque if it is independent and calibrated, like
+  test equipment. Only the system under test must be observable.
+- **Test order.** One small dense LM on real text answers three cheap questions first:
+  - the post-hoc bus-tax upper bound (D1);
+  - the precision tax (D2);
+  - the attention-sparsity tax (D3).
+  Then a from-scratch ablation ladder adds one constraint at a time, so every tax is attributable. The synthetic
+  typed-operator test moves later, because it says nothing about real-text performance.
+- **Not adopted:** rotation-based outlier handling, because it mixes named features. Per-feature scales do the job
+  instead.
+
+### Next
+Round 2: the same critics check whether v2 actually resolves their findings, and look for new fatal issues
+introduced by the fixes.

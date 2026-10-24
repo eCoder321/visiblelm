@@ -1,394 +1,417 @@
 # Redesign: a language model that is both performant and observable
 
-**Status: v1 (2026-10-24).** Written before any critique. A refinement history at the bottom records each change,
-so the reasoning stays visible. The step-by-step reasoning behind this file (parallels explored, approaches rejected,
-dead ends) is in `THINKING-LOG.md`. Prior-art claims marked *(verify)* are from memory and have not been checked
-against the papers yet.
+**Status: v2 (2026-10-24).** This revision follows critique round 1: an independent performance skeptic and an
+observability skeptic. Every change from v1 is listed, with the finding that forced it, in the refinement history
+(§12). v1 is in git history (commit `e45149f`). The reasoning trail is in `THINKING-LOG.md`. Prior-art claims
+marked *(verify)* are from memory, not yet checked against the papers.
 
-**Scope.** "Observable" here means **mechanism visibility**: we can see what the model actually computed and why.
-The second kind, **epistemic visibility** (what the model believes and on what evidence; Graepel, MIT Tech Review,
-2026-10-02), is parked as criterion C7. Every design must leave room for C7 later and must not rule it out.
-
----
-
-## 1. The goal, as testable criteria
-
-| # | Criterion | Plain meaning | Operational test (threshold) |
-|---|---|---|---|
-| C1 | **Performant** | As good as a normal transformer for the same compute. | *Compute-equivalent tax*: the dense compute needed to match our loss, divided by our compute. Target: tax ≤ 10% at small scale, and **not growing with scale**. Wall-clock tax is reported separately. Out-of-distribution (OOD) accuracy must be ≥ dense. |
-| C2 | **Faithful** | The explanation *is* the computation, not a story told about it. | Intervene on a logged variable (feature value, unit firing, attention choice, library entry). The change the trace predicts must match the actual change: ≥ 99% top-1 agreement, KL < 0.01. |
-| C3 | **Complete** | No hidden channel. Everything the output depends on is in the explanation. | *Completeness gap* = NLL(executor that sees only declared variables at declared precision) − NLL(model): ≤ 0.01 nats. Plus a magnitude audit and a non-interference test (§9). |
-| C4 | **Legible** | A person can read it in human-sized pieces, and the names mean what they say. | (a) Explanation size: median number of terms needed to account for 90% of a decision, ≤ 20 per level. (b) Held-out legibility: a unit's description predicts its firing on unseen data at ≥ 0.9 F1. (c) A human-simulability spot check. |
-| C5 | **Checkable** | A third party can verify the explanation without trusting the model. | An independent executor replays the decision log and reproduces the logits (to 1e-6) and the "books balance" (§7.8). Cost ≤ 1 forward pass. Individual decisions can be spot-checked. |
-| C6 | **Predictive** | The descriptions predict behavior on new inputs and after edits. | Using only the descriptions, predict the output under input edits. After editing a unit or library entry, the predicted change holds ≥ 90% of the time. |
-| C7 | *Epistemic (parked)* | We can see beliefs and their evidence. | No test yet. The design must expose a natural place for explicit propositions with provenance. |
-
-Why these and not fewer. C2 without C3 lets the real work happen off the books. C3 without C4 gives a complete
-explanation nobody can read; a dense model's weights already are one. C4 without C2 gives a readable story that
-may be false, which is the chain-of-thought problem. C5 makes the other properties verifiable rather than claimed.
-C6 is the payoff: the reason to want an explanation is to predict and control behavior.
+**Scope.** "Observable" means **mechanism visibility**: what the model actually computed and why. **Epistemic
+visibility** (what it believes and on what evidence; Graepel, MIT Tech Review, 2026-10-02) is parked as C7. Nothing
+here may rule it out.
 
 ---
 
-## 2. First principles: why today's LLMs are performant, and why they are opaque
+## 0. The short version
 
-**Why they perform** (each item is something a redesign must keep, or replace with something just as good):
-1. **Capacity per FLOP.** Dense matmuls run at near-peak hardware speed. *Superposition* lets a d-dimensional vector
-   carry N ≫ d features as overlapping directions, so the model holds far more concepts than it has dimensions.
-2. **Benign optimization.** Everything is differentiable, gradients reach every parameter, and overparameterization
-   smooths the loss landscape.
-3. **Generic inductive bias.** Attention plus MLPs can learn whatever structure the data has.
-4. **Graded representations.** Similarity, uncertainty, register and style are continuous, and fluency lives in
-   those fine gradations.
-5. **Scale.** Data and compute.
+Dense transformers are already *exactly decomposable*: between nonlinearities everything is linear. What they lack is
+three things: **(i) a named basis, (ii) few terms, (iii) a guarantee that the named terms are the whole story.**
 
-**Why they are opaque** (each item is a requirement to fix):
-1. **Unnamed superposition.** The information is there but not addressable. No coordinate means "France".
-2. **Everything is active.** Every output is a sum of millions of small contributions, so even an exact
-   decomposition is unreadable.
-3. **No guarantee of completeness.** Post-hoc tools (sparse autoencoders, attribution graphs) leave an error
-   term ("dark matter"). Nobody can say the named part is the whole story.
-4. **Unbounded magnitudes.** A continuous value can carry arbitrarily many bits. We measured this directly: 2.3 nats
-   of undeclared information rode on magnitudes (E1).
-5. **Too many operations to read.** About 10^11 operations per token, so reading the trace needs to be on demand
-   and hierarchical. It cannot be exhaustive.
+v1 tried to get these by making the raw computation *small*: about 200 active features, cut back every layer. The
+critics showed two problems:
+- **(a)** that starves capacity;
+- **(b)** v1's "by construction" checks are passed by *any* model that logs its state, so they don't measure
+  observability.
 
-**The sharpest version (the key insight of this redesign).** *Decomposability is cheap and dense models already
-have it.* Between nonlinearities, a transformer is linear, so every logit already splits exactly into per-coordinate
-contributions. Attribution-graph methods exploit this. What a dense model lacks is three things:
-- **(i) a named basis**, so the terms of the decomposition are about something;
-- **(ii) few active terms**, so the decomposition is readable;
-- **(iii) a guarantee that the named terms are the whole story**, so nothing is off the books.
+v2's answer:
+- **Let the raw computation be as large as performance needs**, but keep it in a named basis, exactly accountable,
+  with every nonlinearity logged on a declared grid.
+- **Train it under pressure to admit short descriptions.**
+- **Measure observability as a curve, the explanation frontier.** How faithfully do descriptions of a given size
+  reproduce the model? The comparison point is a dense transformer described by the best post-hoc tools.
 
-Every design below is a way to get (i)–(iii) without giving up items 1–4 of the "why they perform" list.
+**Observability is a curve, not a yes/no property.** A design is better when its curve sits closer to "small and
+exact".
 
 ---
 
-## 3. The core tension, and why it is not fundamental
+## 1. Criteria (v2)
 
-Observability *seems* to want a few named, discrete, separate things. Performance *seems* to want many overlapping,
-continuous, shared things. Our own experiments felt this: forcing binary values cost 0.29–0.5 nats (T1/T2). But
-each half of the tension has a resolution that keeps what the other half needs:
+### C1 — Performant
+*Compute-equivalent tax* = 1 − (dense compute that reaches our loss) / (our compute), read off IsoFLOP curves.
+- **Baselines:** both a dense transformer **and** a mixture-of-experts / PEER model with a dense residual. Frontier
+  models are MoE, and MoE gives roughly a 2–4× compute multiplier *(verify)*, so beating only dense is too easy.
+- **Report separately:** active FLOPs, total parameters, wall-clock. Use ≥ 3 seeds.
+- **Bands:**
+  - **success:** ≤ 10%;
+  - **redirect:** 10–30% (find the responsible step in the ablation ladder, §11);
+  - **kill that configuration:** > 30%.
+- **Scale:** the tax must not grow across ≥ 3 sizes at fixed ratios (k/d, N/d). Ratios must match the target
+  regime, not absolute sizes.
 
-| Performance needs | Observability fears | Resolution |
+### Observability, level 1: hygiene
+Necessary, **not sufficient**. A dense model that logs its state also passes these.
+
+| | Requirement |
+|---|---|
+| H1 | **Bit-exact replay.** An independent executor reproduces the decision log bit-exactly. The log is canonically ordered and hash-chained, and **every** top-k / threshold decision in it is re-checked exhaustively (about one forward pass of cost). |
+| H2 | **Books balance exactly.** Every logit and every feature value equals the sum of its logged contributions. Any imbalance is an implementation bug. |
+| H3 | **No full-precision scalar anywhere in the log.** Every logged number (feature values, gates, attention weights, retrieval scores, norm gains) sits on its declared grid **at inference**. |
+
+### Observability, level 2: discriminating
+A dense model with logging must **fail** these, and every test is run on that control to prove it does.
+
+- **The fixed description language 𝓛.** A description of a unit or feature is a short program over named features.
+  Its pieces are: a selection rule with b-bit weights, a 1-D activation, a write list, and typed operators. 𝓛 is
+  fixed before training and run by an **independent interpreter** with its own implementation.
+- **Description length.** DL is measured in bits under a fixed code, and counted *to full grounding*: a description
+  that uses a learned feature pays for that feature's own description, recursively.
+
+| # | Criterion | Test (thresholds are provisional; calibrate on the first real-text run) |
 |---|---|---|
-| N ≫ d features per position (superposition) | features are unnamed and entangled | **Carry the sparse code explicitly.** The state is a list of (feature id, value) pairs, k of them from a dictionary of N. The d-dim vector is only a hardware encoding of that list, so nothing has to be "decoded" and nothing is ambiguous. Compressed-sensing math says d ≳ C·k·log(N/k) suffices even for dense reads: k=200 and N=10^6 give d ≈ 3.5k–7k. |
-| nonlinearity (expressiveness) | nonlinearity mixes everything | **Every nonlinearity is a logged decision; everything else is exact accounting.** Nonlinearities become top-k selections or 1-D functions of exactly-decomposed scores, and each one is written to a log. Between decisions the math is linear, so attribution is exact. |
-| continuous magnitudes (graded meaning) | magnitudes smuggle bits | **Declared precision.** Each value carries a stated number of bits, enforced by training with injected noise. A noisy channel's capacity is bounded (½·log(1+SNR)), so the hidden channel becomes a *declared, measured* channel. Binarizing is not needed; top-k keeps the values exact (L2). |
-| millions of contributions | unreadable | **Hierarchical summaries with an exact remainder**, like a financial audit's "materiality threshold". For example: "these 6 terms make up 91% of the logit, and the other 9% is these 40", with recursion on demand. Nothing is ever dropped silently. |
+| C2 | **Faithful** | Specify an intervention in *description* terms (e.g. "set `is-question` to 0"). Its effect, as predicted by the interpreter running the descriptions, must match the model's actual effect. Use random single, **pairwise** and off-distribution interventions. Target ≥ 95% agreement. |
+| C3 | **Complete** | *Description-simulated replay (DSR) gap*: the interpreter runs only the descriptions, at full budget, and must match the model within 0.01 nats on iid **and** shifted data. *Canary:* an adversary co-trained to smuggle k bits through undeclared structure must be detected with power ≥ 0.9. |
+| C4 | **Legible** | *Explanation frontier.* **Global:** fidelity vs total description bits. Target: dominates the dense + post-hoc control by ≥ 10× fewer bits at equal fidelity. **Local:** fidelity of a single decision vs bits read, to full grounding. Target: for ≥ 80% of tokens, ≤ 2 kbits (about a page) reproduces ≥ 90% of the decision's gross margin over the runner-up. Always report the cancellation ratio Σ\|c\|/\|Σc\| and the tail mass. Natural-language labels are optional and are audited by an independent simulator that is **never** used in training. |
+| C5 | **Checkable** | H1–H3, plus a written **trust set**. A checker trusts: the weights, the 𝓛 interpreter, the test data, floating-point determinism, and log integrity. It does **not** trust the model's own explanations or labels. |
+| C6 | **Predictive** | A third party makes random edits to **any** unit, entry or description, not ones we chose. The change predicted from the descriptions holds ≥ 90% of the time. Failures among units removed by clonal selection are reported too. |
+| C7 | *Epistemic (parked)* | Hooks only: explicit propositions with provenance (§8). |
 
-Three **capacity strategies** follow, one per design:
-- **S1 Wide-sparse pools (Design A).** Hold capacity in *many named units, few active*, selected in O(√N) by
-  product keys.
-- **S2 External library (Design B).** Hold *knowledge* in readable entries outside the weights.
-- **S3 Bounded fluency channel (Design C).** Put the capacity-hungry, low-stakes part (surface wording and style)
-  in a component whose influence on *content* is bounded and audited.
+**Why this fixes the vacuity problem.** Every hygiene test reduces to "the log is the computation", which costs
+nothing to pass. Level 2 asks something a logged dense model can't give: a *short* program, in a fixed language,
+that reproduces it. Ciphers, polysemantic features and joint codes are not hidden by this measure. They show up as
+a bad frontier, which is exactly where they belong.
 
 ---
 
-## 4. Working backwards: the requirement tree
+## 2. First principles (unchanged from v1, condensed)
 
-Each node answers "what must be true for the parent to hold?" The leaves are building blocks (BB), catalogued in §6.
+**Why LLMs perform:**
+- capacity per FLOP (superposition and dense matmuls);
+- benign optimization;
+- generic inductive bias;
+- graded representations;
+- scale.
+
+**Why they're opaque:**
+- unnamed superposition;
+- everything active;
+- no completeness guarantee;
+- unbounded magnitudes;
+- too many operations to read.
+
+The redesign keeps the first list and fixes the second, via (i)–(iii) in §0.
+
+## 3. The tension and its four resolutions (revised)
+
+| Performance needs | Observability fears | Resolution (v2) |
+|---|---|---|
+| N ≫ d features per position | features unnamed and entangled | **Carry the sparse code explicitly** (ids + values). Each feature has its own learned threshold (JumpReLU-style) against a target L0; there is no global top-k. Features only compete with their own threshold, so nothing has to "win" a slot every layer. The bus is **additive and persistent**: features stay until a logged decay or erase. Raw k is as large as performance needs, around d/8–d/4. Short explanations come from the frontier, not from a tiny raw k. |
+| nonlinearity | nonlinearity mixes everything | **Every nonlinearity is a logged decision on a declared grid; everything else is exact accounting.** |
+| graded magnitudes | magnitudes smuggle bits | **Hard quantization at inference.** b = 8 bits by default, with **per-feature scales**: each feature has its own range, so outliers in residual coordinates don't matter. Training uses quantization-aware training (straight-through estimator). Noise injection is at most a training aid with **fixed** scales, never the bound itself. The bound is representational: a value has 2^b possible states, full stop. |
+| millions of contributions | unreadable | **Explanation frontier + hierarchical summaries with exact remainder.** Reported by margin over the runner-up, gross (\|c\|), with cancellation ratio and tail mass, so many small terms can't hide a decision. |
+
+The three capacity strategies are unchanged:
+- **S1** many named units, few active;
+- **S2** an external library;
+- **S3** a bounded fluency channel.
+
+v2 folds S2 and S3 *into* Design A instead of building them as separate taxed stages (§8–§10).
+
+---
+
+## 4. Requirement tree (v2)
 
 ```
 G  Performant AND observable LM
 ├─ R1 Performant (C1)
-│  ├─ R1.1 capacity per parameter and per FLOP comparable to dense
-│  │   ├─ R1.1a represent N ≫ d features per position ............ BB1 explicit sparse feature bus
-│  │   ├─ R1.1b many specialized units, few active ................ BB2 product-key unit pools
-│  │   ├─ R1.1c knowledge capacity without parameters ............. BB12 library with provenance
-│  │   └─ R1.1d selecting among N items costs sublinear in N ...... BB2 product keys (O(√N)), approximate-NN retrieval
-│  ├─ R1.2 trainable at scale with no discrete-snap cliff
-│  │   ├─ values stay continuous; only *choices* are discrete ..... BB5 top-k everywhere (gradients exact for the chosen items)
-│  │   ├─ no dead or stuck units ................................... BB10 clonal selection (prune + regrow by fitness)
-│  │   └─ load balance across units ................................ standard mixture-of-experts load balancing
-│  ├─ R1.3 inductive bias that generalizes to unseen combinations
-│  │   └─ operators shared across values (equivariance) ........... BB6 typed operator library  ← from E2redux (L5)
-│  └─ R1.4 fluency: graded similarity, style, idiom
-│      ├─ graded values ........................................... BB7 declared-precision magnitudes
-│      ├─ idiom by precedent ...................................... BB13 precedent entries (kNN-LM style)
-│      └─ style without content leakage ........................... BB15 bounded style channel
-├─ R2 Faithful (C2)
-│  ├─ the explanation is produced by the same forward pass ........ BB9 decision log (flight recorder)
-│  └─ explanation variables are the causal variables .............. BB1 + an intervention API
-├─ R3 Complete (C3)
-│  ├─ R3.1 every bit used downstream passes a declared variable
-│  │   ├─ state has no leftover dense remainder ................... BB1 (state *is* the list)
-│  │   ├─ magnitudes carry only declared bits ..................... BB7 noise-bounded precision
-│  │   ├─ normalization is not a side channel ..................... BB8 logged norm gain
-│  │   └─ attention mixes only logged sources ..................... BB4 relay attention (sparse, logged)
-│  └─ R3.2 completeness is verified, not assumed
-│      ├─ books balance: Σ contributions = logit exactly .......... BB11 double-entry audit
-│      └─ declared-info-only replay ............................... BB11 lockstep executor
-├─ R4 Legible (C4)
-│  ├─ names that are correct by construction ...................... BB14 compositional naming
-│  ├─ explanations that are short ................................. BB3 coincidence gating, contribution-concentration penalty
-│  ├─ names that predict held-out behavior ........................ BB10 clonal selection with a legibility fitness
-│  └─ human-scale reading at LLM scale ............................ BB11 hierarchical summaries with exact remainder
-├─ R5 Checkable (C5)
-│  └─ verification without trusting the model ..................... BB11 independent replay + sampled decision checks
-├─ R6 Predictive (C6)
-│  └─ edits to named parts change behavior as described ........... BB6, BB12, edit tests
-└─ R7 Epistemic (C7, parked)
-   └─ explicit propositions with evidence .......................... BB12 library entries + BB16 plan states (hooks)
+│  ├─ capacity: N ≫ d named features ........ BB1 bus (per-feature thresholds, additive, raw k ≈ d/8–d/4)
+│  ├─ capacity: many units, few active ....... BB2 PEER-style pools reading the named bus
+│  ├─ knowledge capacity ..................... BB2 (parametric, *visible*) + BB12 library (external, provenance)
+│  ├─ sublinear selection .................... product keys over units and over the dictionary (re-encoding)
+│  ├─ trainability ........................... BB5 top-k / thresholds (exact gradients on chosen items), QAT,
+│  │                                            AuxK-style revival, aux-loss-free load balancing
+│  ├─ attention expressiveness ............... BB4 general low-rank OV + re-encode; per-head sparsity incl. entmax
+│  └─ generalization on structured sub-domains BB6 typed operators (numbers, dates, counts, lists)
+├─ R2–R4 Faithful, Complete, Legible (C2–C4)
+│  ├─ hygiene: log = computation, on grids ... BB9 decision log, BB7 hard quantization, BB11 exact replay/audit
+│  ├─ short descriptions exist ............... BB10 clonal selection on fidelity-per-description-bit; DL penalty
+│  ├─ short descriptions are measured ........ BB17 frontier evaluator with independent 𝓛 interpreter
+│  ├─ the measure can't be fooled ............ BB18 canary adversary; BB19 dense + post-hoc control
+│  └─ content vs style ....................... BB15 information-flow typing + non-interference test inside A
+├─ R5 Checkable (C5) ......................... BB11 exhaustive checks, hash-chained log, trust set
+├─ R6 Predictive (C6) ........................ third-party random edits; BB6 / BB12 editability
+└─ R7 Epistemic (C7, parked) ................. BB12 entries with provenance; content-typed features
 ```
 
 ---
 
-## 5. What our own experiments already taught us (inputs to the design)
+## 5. Lessons from our experiments (unchanged inputs)
 
-| # | Lesson | Evidence | Design consequence |
+| # | Lesson | Design consequence |
+|---|---|---|
+| L1 | Measure generalization, not memory. | Held-out and OOD splits in every test. |
+| L2 | Sparsity is nearly free; **binarizing** costs 0.29–0.5 nats (T1/T2). | Discrete *choices*, multi-bit *values*. |
+| L3 | Undeclared magnitudes carried 2.3 nats (E1). | Declared, *enforced* grids (now hard quantization at inference). |
+| L4/L5 | Lookup tables can't generalize arithmetic to unseen arguments, and **neither can dense** (all models ~0% held-out succ/pred/pls2; E2redux). | Equivariant typed operators for structured sub-domains. |
+| L6 | Weighted-sum gating fired on accidental mixes (E1c). | Test AND-gating against a linear threshold with a margin (§11, T-A2). |
+| L7/L8 | With dense voting, whole-rule ablation misleads, and stories are cheap and often wrong (E1b, E1d). | Interventions are first-class and are checked against an independent interpreter. |
+| L9 | Structure already beats dense OOD (shift 1.41 vs 1.84 NLL) but loses iid (0.78 vs 0.59). | Locate the iid tax by ablation ladder. |
+| L10 | The iid oracle ignores rejection-sampling conditioning, so it is slightly loose. | Use the dense NLL as the practical floor. |
+| L11 *(new)* | Post-hoc quantization to ≤ 16 levels destroyed agreement (49–62%) while full precision gave 91% (E1). 8-bit was never tested. | Default b = 8 with QAT. Treat 4-bit as an experiment, not an assumption. |
+
+---
+
+## 6. Building blocks (v2)
+
+v1 blocks keep their parallels and prior art (see the v1 table in git history). Changed or new entries:
+
+| BB | Block | v2 specification | Status |
 |---|---|---|---|
-| L1 | A testbed must measure generalization, or it measures memory. | The original 180-sequence testbed (review). | Every test reports held-out-combination and OOD splits. |
-| L2 | Sparsity with continuous values is nearly free. Binarization is what costs. | T1/T2: 0.29–0.5 nats from the binary snap. | Make *choices* discrete and keep *values* continuous at declared precision (BB5, BB7). Never binarize. |
-| L3 | Undeclared magnitudes are a real hidden channel. | E1: 2.3 nats lived in magnitudes. | Precision must be declared and enforced, not hoped for (BB7). |
-| L4 | The iid gap is concentrated in arithmetic modes, and their value tables never moved from identity. | E1c: pred 28%, pls2 23%, succ 13% errors vs ~8% for copy modes; every succ/pls2 table exactly identity. | Arithmetic needs a different representation. |
-| L5 | Free lookup tables cannot generalize arithmetic to unseen arguments, **and neither can a dense transformer.** | E2redux: tables freed from their regularizer still left iid NLL flat (0.785 vs 0.778, seed 0) or worse (0.970 vs 0.830, seed 1), and the rulebook grew 8× (65k vs 8.4k). Held-out succ/pred/pls2 accuracy was 0.0–0.025 for **every** model: rulenet_g, T2_large, *and dense*. | An unseen table cell gets no gradient, so it cannot be learned. Generalizing needs an operator shared across values (shift-by-n on a cyclic code). That is legible *and* the right inductive bias (BB6). |
-| L6 | Weighted-sum gating lets a rule fire on an accidental mix of conditions. | E1c: succ-labeled rules fired on 70% of wrong cpy3 steps vs 0% of right ones. | Coincidence (AND-like) gating: a unit fires only when *all* its conditions hold (BB3). |
-| L7 | With dense voting, ablating "bad" rules hurts. Attribution is non-local. | E1d: targeted ablation made succ worse (0.84→0.77). | Fewer, crisper contributors and exact decomposition. Don't rely on whole-rule ablation as the explanation tool. |
-| L8 | Mechanistic stories are cheap to make and often wrong. | E1b refuted, then E1c's story refuted by E1d. | Build intervention and replay tooling into the design (BB9, BB11), so every story gets tested. |
-| L9 | Structure already beats dense out of distribution. The in-distribution tax comes from specific mechanisms. | rulenet_g vs dense, NLL: shift 1.41 vs 1.84, long 1.40 vs 1.51, held-out cpy3 accuracy 0.96 vs 0.50. But iid 0.78 vs 0.59. | Target the specific mechanisms behind the iid tax (L4/L5). |
-| L10 | The iid "oracle" floor is slightly loose. | Dense reaches 0.593 vs oracle 0.617 on the same split. The oracle ignores the rejection-sampling conditioning that removes held-out events from training-distribution sequences. | Treat the dense NLL as the practical iid floor. Fix the oracle if exact floors matter. |
+| 1 | **Explicit sparse bus** | (id, value) list. Per-feature learned thresholds with a target L0, so k varies per token. Additive and persistent across layers. After each layer the dense update is **re-encoded** into the named list by a thresholded encoder, searched in O(√N) with product keys. Whatever the encoder drops is gone: a *measured performance cost*, not a hidden channel. Canonical ordering by id. | new |
+| 2 | **Unit pools reading the named bus** | PEER-style units. Unit u's score `z_u = Σ_{f∈S_t} a_f w_{u,f}` is *defined* over named features, so there is one source of truth and no separately declared conditions that could disagree with selection. Selection is top-k_u (logged). The activation is a 1-D function (logged, on a grid). The write is a dense update, re-encoded as in BB1. An L1 penalty on w_u in feature space and the DL pressure push toward short descriptions. Near-miss candidates (the next m after the top-k) are logged. | partial |
+| 3 | **Coincidence gating** *(now optional, tested)* | Log-domain product, `log g = Σ_i log σ(β(c_i − θ))`. Its gradient on an unsatisfied condition is large, not vanishing. Cold start from low θ, annealed upward. Adopted only if T-A2 shows it beats a linear threshold with a margin penalty. | test first |
+| 4 | **Relay attention** | Scores split exactly over feature pairs. A **general low-rank OV map** (not renaming-only) whose output is re-encoded; renaming is the legible special case and is encouraged. Per-head sparsity: top-k for copy/induction heads, entmax/sparsemax for averaging heads. Weights quantized and logged. **Dropped attention mass** goes to the remainder ledger. | partial |
+| 7 | **Declared-precision values** | Hard quantization at inference, b = 8 by default, per-feature scales, QAT in training, fixed (not learnable) noise scales if noise is used at all. | exists (QAT) / new use |
+| 10 | **Clonal selection** | Fitness = **fidelity contributed per bit of description**, computed automatically from the frontier evaluator, with no human or LLM in the loop. Feature splitting when a feature's description fails on a coherent subset. | partial |
+| 11 | **Audit** | Exhaustive re-check of every logged decision, bit-exact replay, hash-chained logs (like certificate-transparency logs), and the written trust set. | new for NNs |
+| 12 | **Library** | An external extension of A's unit pool: entries = (text, key/value in A's feature space, provenance). **The dictionary is frozen (versioned) before indexing**, and indices are rebuilt per dictionary version. | partial |
+| 15 | **Content/style typing** | Dictionary features carry a declared *content* or *style* type. Non-interference test: hold the content features fixed, vary everything else, and check that the content of the output doesn't change. Done inside A, not as a separate voice. | new |
+| 17 | **Frontier evaluator** *(new)* | Independent 𝓛 interpreter, evaluator-defined truncation (keep the highest-attribution terms up to B bits, mean-ablate the rest), and global and local fidelity curves. | new |
+| 18 | **Canary adversary** *(new)* | Co-train a smuggler that must pass k hidden bits through undeclared structure, and measure whether the audits catch it. This tests the *test*. | new |
+| 19 | **Dense + post-hoc control** *(new)* | The same dense model described with the best post-hoc tools (transcoders / SAEs at every layer) in the same 𝓛, which gives the reference frontier. | exists (tools) / new use |
+| 20 | **Blinded clerk** *(new, optional)* | Entity identities are re-randomized per context in training (placeholder ids), so entity facts *cannot* be memorized in weights and must come from the library. Its decisive test: closed-book entity recall at chance. | new |
 
 ---
 
-## 6. Building blocks
+## 7. Design A v2 — Glass Box (the core)
 
-Status: **exists** = established technique; **partial** = pieces exist, our combination or use is new;
-**new** = no known equivalent (to our knowledge, *verify*).
+**Principle:** *let the computation be as big as it needs to be; keep every piece of it named, accountable and on
+a declared grid; and make it compete to be short.*
 
-| BB | Block | What it does | Status | Nearest prior art *(verify)* | Parallel that suggested it |
-|---|---|---|---|---|---|
-| 1 | **Explicit sparse feature bus** | Residual state = list of ≤ k (feature id, value) pairs from a dictionary of N. The d-dim form is only an encoding. | new | Sparse autoencoders (post-hoc); Monet; sparse feature circuits | Cortical sparse coding (Olshausen & Field); the *blackboard* architecture (Hearsay-II) |
-| 2 | **Product-key unit pools** | 10^4–10^6 units per layer, top-k_u selected in O(√N) | exists | Product-key memory (Lample 2019); PEER "million experts" (He 2024); memory layers at scale (Berges 2024) | Insect mushroom body: sparse expansion + winner-take-all (Dasgupta 2017, "fly hashing") |
-| 3 | **Coincidence gating** | A unit fires only when all its conditions co-occur (product / soft-min), not on a weighted sum | partial | Sigma-pi units, gated linear units | Dendritic NMDA spikes: a branch as an AND, the soma as an OR over branches |
-| 4 | **Relay attention** | Score = exact sum over (query feature, key feature) pairs + relative-position kernel. Top-k_attn with logged weights. Moves *named* features with renaming. | partial | Sparsemax/entmax, top-k attention, bilinear decompositions | Mail routing with addressed envelopes vs broadcast hormones |
-| 5 | **Top-k instead of binarization** | Discrete choice with exact values, so gradients are exact for chosen items | exists | k-sparse AEs, top-k MoE routing | Lateral inhibition / winner-take-all |
-| 6 | **Typed operator library** | shift(+n) on cyclic/ordinal codes, copy, compare, count. Integer parameters chosen discretely and logged. Shared across values, hence equivariant. | partial | Neural module networks (Andreas 2016), NALU (Trask 2018); grokking finds rotations for modular arithmetic (Nanda 2023); LLMs add numbers on a helix (Kantamneni & Tegmark 2025) | Grid cells: path integration as a phase shift; convolution = translation equivariance |
-| 7 | **Declared-precision magnitudes** | Each value has b declared bits, enforced by noise injection, so channel capacity is bounded and measured | partial | Information bottleneck, quantization-aware training | Spike-rate codes: analog values carried with noise-limited precision |
-| 8 | **Logged norm gain** | RMSNorm's scale is one logged scalar per position, so everything after it is linear | new (trivial) | — | Neuromodulators: a global, low-bandwidth gain |
-| 9 | **Decision log ("flight recorder")** | The forward pass emits every discrete choice and declared value | partial | Deterministic replay debuggers (rr), distributed tracing (Dapper/OpenTelemetry) | Aviation flight data recorders |
-| 10 | **Clonal selection** | Prune/regrow units by fitness = usefulness × legibility. Undescribable, low-value units are recycled. | partial | Our prune+regrow; RigL | Immune clonal selection, negative selection in the thymus, affinity maturation |
-| 11 | **Lockstep executor + books-balance audit + hierarchical summaries** | Independent replay. Every logit = Σ contributions exactly. Explanations at a materiality threshold with exact remainder. | new for NNs | Our `execute_hard_g`; translation validation (compilers) | Double-entry bookkeeping (Pacioli); audit sampling and materiality; chip design-for-test (scan chains cost ~5–10% area) |
-| 12 | **Library with provenance** | Knowledge entries = (text, feature signature, key, source, date) | partial | RETRO, Atlas, REALM | Case law and citations; hippocampus ↔ cortex (complementary learning systems) |
-| 13 | **Precedent entries** | (context signature → continuation) memories that carry idiom and fluency | exists | kNN-LM (Khandelwal 2020) | Judges citing precedent |
-| 14 | **Compositional naming** | A feature's name is the program that produced it ("shift+1 of the value copied from the last succ position") | new | Tracr/RASP (names by construction, compiled not learned) | Chemical nomenclature: names from structure |
-| 15 | **Bounded style channel + round-trip parser + non-interference test** | Text realization gets ≤ b bits/sentence of free choice. A parser checks that the text expresses exactly the plan. Hidden context is varied to test that output doesn't change. | partial | Plan-then-generate NLG; translation validation; steganography detection | Score vs performer; Levelt's speech production (conceptualizer → formulator → articulator); information-flow control / noninterference in OS security |
-| 16 | **Typed plan states** | Per-sentence plan = sparse set of *content-typed* features from BB1's dictionary | partial | Data-to-text content planning (Reiter & Dale pipeline) | An architect's blueprint vs construction |
+### 7.1 Anatomy (per layer)
+1. **Bus** `S_t = {(f, a_f)}`. Ids come from a dictionary of N (target N/d ≈ 250). a_f is on a b-bit grid with a
+   per-feature scale. |S_t| is set by per-feature thresholds (target L0 ≈ d/8–d/4). The hardware form
+   `h_t = Σ a_f E[f]` is just an encoding: every read `W h_t = Σ a_f (W E[f])` splits exactly.
+2. **Norm gain** `s_t`: one logged scalar on a grid.
+3. **Relay attention** (BB4): exact pair decomposition of scores, logged sparse weights, low-rank OV, re-encode.
+4. **Unit pool** (BB2): exact per-feature selection scores, logged top-k_u, 1-D activations on a grid, dense update
+   re-encoded into the named list. Gating (BB3) only if T-A2 earns it.
+5. **Persistence**: features carry over between layers. Decay and erase are logged writes.
+6. **Readout**: `logit_v = Σ_f a_f U[f,v]`. The output softmax defines the distribution.
 
----
+**Nonlinearity inventory:** thresholds (bus and re-encode), unit top-k, unit activation, attention selection and
+weights, norm gain. Each is a logged value on a declared grid, computed from exactly decomposed inputs.
 
-## 7. Design A — Glass Box Transformer (the sparse feature bus)
-
-**Principle:** *all nonlinearity is a logged decision; everything else is exact accounting.*
-
-### 7.1 Anatomy (one layer; repeated L times)
-1. **Bus (state)** `S_t = {(f, a_f)}`, with |S_t| ≤ k_tot (≈100–300 at LLM scale), f ∈ dictionary of N (10^6–10^7)
-   named features, and a_f at declared precision b (BB7). Hardware form: `h_t = Σ a_f E[f]` with E tied across layers.
-   Every linear read `W h_t = Σ a_f (W E[f])` splits exactly into per-feature terms.
-2. **Normalize:** `s_t = 1/rms(h_t)` is **logged** (BB8). After that, everything is linear in h_t.
-3. **Relay attention** (BB4). Score `σ(t,t') = Σ_{f∈S_t, g∈S_t'} a_f b_g ⟨Q E[f], K E[g]⟩ + κ(t−t')`. It is computed
-   densely for speed and decomposed into its k² pair terms on demand. **Top-k_attn** sources (8–32) are kept with
-   their logged weights. Values moved = the source's named features through a learned *renaming* (e.g. `cur → prev`).
-   So "what moved" is a list of named features.
-4. **Unit pool** (BB2, BB3). Product-key query from h_t selects candidate units, and the top-k_u (≈32–64) fire. Unit u
-   has a score `z_u = ⟨key_u, h_t⟩ = Σ a_f ⟨key_u, E[f]⟩` (exact per-feature terms) and a coincidence gate over its
-   declared conditions, `g_u = Π_i σ(β(c_{u,i} − θ))`. That gate is the AND that removes accidental firing (L6). The
-   unit's write is a sparse set of features, each either a free value or a **typed operator** applied to a read
-   value (BB6).
-5. **Write and re-sparsify:** add the writes to the bus, then keep the top-k_tot by |value|. **Evictions are logged**,
-   so forgetting is visible. The evicted mass goes to the remainder ledger.
-6. **Readout** (last layer): `logit_v = Σ_f a_f U[f,v]`, exact per-feature contributions. The final softmax is the
-   definition of the output distribution, not a hidden step.
-
-**Nonlinearity inventory.** There are five kinds: re-sparsify top-k, unit selection top-k, unit gate value,
-attention top-k plus weights, and norm gain. Every one is a logged choice or a logged scalar computed from
-exactly-decomposed inputs. Nothing else in the model is nonlinear.
-
-### 7.2 Why it should perform (C1)
-- Capacity lives in *N named features × values* and in *10^4–10^6 units per layer*, not in unnamed superposition.
-  Very wide product-key pools have reportedly matched or beaten dense FFNs per FLOP (PEER, memory layers *(verify)*).
-  Fine-grained MoE scaling laws favor more, smaller experts *(verify)*.
-- Information budget check: k·(log₂N + b) = 200·(20+4) ≈ 4.8k bits/position. Whether LLM residuals use more than
-  that is **unknown**. This is A's riskiest assumption (§7.5). k can be raised: decomposition stays exact while
-  legibility degrades gracefully, and both are measured.
-- Training stays smooth: values are continuous, only the choices are discrete, and top-k has exact gradients for
-  the chosen items. MoE routing proves this trains at scale. No binary snap, so the main cost we measured (L2) is
-  gone.
-- Equivariant typed operators should *beat* dense on unseen combinations (L5, L9).
-- FLOPs per FFN-replacement are much lower than dense (illustrative: d=4096, 64 single-neuron units ≈ 1M FLOPs plus
-  key search ≈ 5M, vs ≈ 268M for a 4d dense FFN). Parameters and memory bandwidth are much higher. Expect the tax
-  to show up in **wall-clock time on current hardware**, not in FLOPs. Report both.
+### 7.2 Why it should perform (C1), and what the critics changed
+- **No depth-wise starvation.** There is no global top-k and the bus is persistent. Raw k is large. This closes v1's
+  likely-fatal bus bottleneck, *if* the re-encoding loss is small. The re-encoding loss is the one quantity that
+  decides A, and diagnostic D1 (§11) bounds it cheaply before anything is built.
+- **Unit pools are established.** Product-key memory, PEER and memory layers report matching or beating dense FFNs
+  per FLOP *(verify; custom kernels were needed)*. The control baseline is MoE/PEER with a *dense* residual. The
+  ladder (§11) then separates the pool tax from the bus tax.
+- **Values stay multi-bit** (L2). 8-bit activations are routinely near-lossless in LLMs (W8A8-style results,
+  *verify*). Per-feature scales sidestep the coordinate-outlier problem.
+- **Honest costs.** Q/K/V/O projections stay dense. Gathers are memory-bandwidth-bound. Top-k attention needs a
+  materialized-score or approximate path, so FlashAttention-class kernels need adapting. Expect a **wall-clock**
+  tax on current hardware even if the FLOP tax is small. It is reported separately and treated as engineering, not
+  as a property of the design.
 
 ### 7.3 How A meets each criterion
 
-| Criterion | Mechanism | Strength |
+| Criterion | Mechanism | Status |
 |---|---|---|
-| C1 Performant | Wide-sparse pools, explicit sparse bus, top-k (no binarization), typed operators, product keys | **Open empirical question.** Riskiest assumption §7.5. Evidence for the pools exists; evidence for the bus does not. |
-| C2 Faithful | The trace *is* the forward pass (decision log). Interventions are edits to logged variables, re-run through the same code. | **By construction.** The test only checks the implementation. |
-| C3 Complete | State is the explicit list (no dense remainder). Magnitudes are noise-bounded to b bits. Norm gain logged. Attention sparse and logged. Evictions logged. | **By construction, up to declared precision.** The magnitude audit measures it. The declared capacity k·b bits/position is a *stated* channel, not a hidden one. |
-| C4 Legible | Names compose (BB14). Coincidence gating keeps firing logical. Contributions are concentrated by a penalty and measured as "terms to 90%". Clonal selection removes units that can't be described. Summaries have an exact remainder. | **Statistical, measured, pushed by training pressure.** The weakest link at scale: no guarantee every latent feature has a short name. |
-| C5 Checkable | An independent lockstep executor replays the log. Books balance per logit and per layer. Decisions can be sampled and re-derived (e.g. re-run that top-k). | **By construction.** Replay cost ≈ 1 forward pass. |
-| C6 Predictive | Typed operators and named units have semantics. Editing a unit's condition or write changes behavior as its name says. | **Measured.** Strong for typed parts, moderate for learned-latent parts. |
-| C7 Epistemic (hook) | Named features and units are where propositions and evidence links can live later. | Hook only. |
+| C1 | Big persistent named bus, PEER pools, multi-bit values, general OV, MoE-level baselines | **Open, empirical.** D1 bounds it first. |
+| H1–H3 | Decision log, canonical order, hard grids, exhaustive re-checks, hash chain | **Guaranteed** (hygiene only). |
+| C2 | Interventions in description terms, judged by the independent interpreter | **Measured.** Strong where descriptions are short; the frontier says where. |
+| C3 | DSR gap + canary. No full-precision channel exists (H3). Combinatorial codes show up as DSR gap, not as hidden bits. | **Measured.** The bound on state bits per position, k·(log₂N + b), is a guaranteed *cardinality* bound. |
+| C4 | Frontier with DL pressure and fidelity-per-bit selection. Margin/gross/cancellation/tail reporting. | **Open, empirical.** The main scientific question after C1. |
+| C5 | H1–H3 plus the trust set | **Guaranteed for consistency with the weights.** *Not* a guarantee that names are right (that is C4's job). |
+| C6 | Third-party random edits judged by descriptions | **Measured.** |
+| C7 | Content-typed features and library entries as future propositions | Hook. |
 
-### 7.4 Main failure modes and their counters
-- **Many tiny contributors** (legible in principle, unreadable in practice). Counter: a concentration penalty, plus
-  "terms to 90%" reported as a first-class metric.
-- **Polysemantic dictionary features** (a name that's wrong half the time). Counter: a held-out-legibility fitness in
-  clonal selection, and feature splitting when a feature's description fails on a coherent subset.
-- **Magnitude channel saturating** (the model packs content into the b declared bits). Allowed, because it's
-  declared. Raise k or lower b if the audit shows heavy use, and report the bits actually used.
-- **Top-k attention starving long-context averaging.** Counter: allow k_attn to vary per head, and log the "dropped
-  attention mass" in the remainder ledger.
-
-### 7.5 Riskiest assumption, decisive test, kill criterion
-- **Assumption:** a residual constrained to be an explicit k-sparse list over N named features, trained from scratch,
-  costs ≤ ~10% compute-equivalent, and the cost **falls as N grows** at fixed k.
-- **Decisive test:** T-A0 / T-A1 (§11). Measure tax vs N ∈ {1k…64k} at fixed k, and tax vs k, on real text.
-- **Kill:** tax does not fall as N grows at fixed k (named capacity can't substitute for superposition), **or** the
-  books-balance check can't be made exact (the design leaks).
+### 7.4 Riskiest assumption, decisive test, kill criterion
+- **Assumption:** re-encoding into an explicit named list at every layer, with per-feature thresholds, raw
+  k ≈ d/8–d/4 and N/d ≈ 250, costs ≤ 10% compute-equivalent when trained from scratch.
+- **Decisive tests:**
+  - D1 (post-hoc splice, a cheap upper bound);
+  - then the ladder step "+explicit bus" in T-A0.
+- **Kill:** the from-scratch bus tax exceeds 30% at the target ratios, **or** its L(N,k) fit shows an irreducible
+  floor above 10% (loss floors set by k that a bigger N can't remove).
 
 ---
 
-## 8. Design B — Library and Clerk (knowledge outside the weights)
+## 8. Design B v2 — Library (knowledge with provenance)
 
-**Principle:** *knowledge lives where you can read it; the model is a clerk who must cite.* This directly targets
-Graepel's second gap, "knowledge entangled with manipulation". It is also the most direct route to C7 later.
+**What changed and why.** The critics showed that forbidding parametric memory works against the loss, that it is
+evadable (the clerk can learn to detect edited entries), and that it is unnecessary in v2. **A's unit pool already
+is a readable key→value memory**: FFN layers act as key-value memories *(verify)*, and here both keys and values are
+named features. So knowledge in weights is no longer *hidden*. It sits in visible units.
 
-### 8.1 Anatomy
-- **Library:** millions to billions of entries, each `(text, feature signature in A's dictionary, retrieval key,
-  provenance: source, date, trust tag)`. Two kinds:
-  - **fact entries**: propositions;
-  - **precedent entries** (BB13): `(context signature → continuation)` memories that carry idiom and fluency, so
-    "we say X because in contexts like these the next word was X".
-- **Clerk:** a *small* Design-A model. Retrieval is a logged decision: top-k entries, each score exactly decomposed
-  over feature pairs. Retrieved entries enter the bus as named features with a provenance tag. A logit's
-  contributions therefore split into **cited entries / clerk units / context**.
-- **Core knowledge** that has to stay parametric (grammar, common sense) lives in the clerk's *declared* A-units. It
-  is visible, just not cited.
+B's job is therefore the things only an external store gives:
+- **provenance**: where a fact came from;
+- **editability without retraining**;
+- **freshness**;
+- **capacity beyond the parameters**.
 
-### 8.2 Training that forces honest citation
-- **Counterfactual-edit open-book training.** During training, randomly edit or swap library entries and require
-  the output to follow the *edited* entry. Memorizing the fact in the clerk's weights then *hurts* the loss, so
-  relying on the library is the only winning strategy.
-- **Closed-book leakage audit.** Remove or blank the library and measure how much non-core knowledge the clerk still
-  recalls. That recall is the hidden channel, so it must be small.
-- **Reliance-under-edit test.** Edit an entry: the output follows it ≥ 90% of the time.
+### Design
+- **Entries:** (text, key/value in A's frozen, versioned feature space, provenance). Retrieval uses the same logged
+  selection mechanism as units, over a larger store.
+- **Parametric knowledge is allowed and measured, not capped.**
+- **Citation must be causal when shown.** A cited entry has to actually drive the output. Test it with
+  type-matched, *plausible* edits that include provenance fields. Edits must not be detectable: a probe on clerk
+  activations classifying edited vs unedited entries should sit at chance. Add a distractor test: answer from a
+  wrong but well-formed entry.
+- **"Hidden memory" audit.** Use a relearning test, not blank-library recall: how fast do withheld facts come back
+  under a few fine-tuning steps?
+- **Optional blinded clerk (BB20)** for settings that need *guaranteed* provenance: entity identities are randomized
+  per context, so entity facts can only come from the library.
 
-### 8.3 How B meets each criterion
-
-| Criterion | Mechanism | Strength |
+| Criterion | B's contribution | Status |
 |---|---|---|
-| C1 | Retrieval substitutes for parameters: RETRO ~25× fewer parameters on some benchmarks, Atlas 11B vs PaLM 540B few-shot QA, kNN-LM perplexity gains *(verify all)*. The clerk is small. | **Plausible, with evidence.** Risks: retrieval latency and I/O, and reasoning that needs knowledge woven too finely to retrieve. |
-| C2 | Citations are causal: edit training plus reliance tests show outputs actually depend on cited entries, rather than decorating them. | **Measured** (target ≥ 90% reliance). |
-| C3 | The hidden channel would be clerk parametric memory, and the leakage audit bounds it. Core knowledge is declared A-units. Retrieval is logged. | **Measured** (leakage target ≤ 10% of non-core facts). |
-| C4 | Entries are text, the most legible form there is, with provenance. Clerk reasoning inherits A's legibility. | **Strong for knowledge; A-level for reasoning.** |
-| C5 | Re-run with an entry removed or edited, check provenance, replay the clerk with A's executor. | **By construction plus a cheap counterfactual check.** |
-| C6 | Edit an entry and predict the change. | **Measured** (reliance-under-edit). |
-| C7 | Entries are explicit propositions with provenance: the seed of a belief store. | **Strongest hook of the three designs.** |
+| C1 | Capacity beyond parameters. Gains are reported on a near-duplicate-deduplicated test set (13-gram filter), split by token type. | Measured. Retrieval gains are partly train/test overlap *(verify)*, hence the dedup. |
+| C2 / C6 | Citations proven causal by edit tests | Measured |
+| C3 | Retrieval is a logged selection on grids. The retrieval choice channel is bounded by log₂(store size) per entry. Signatures are recomputed by a fixed encoder, so they can't carry extra bits. | Hygiene guaranteed; DSR measured |
+| C4 | Entries are text with provenance | Strong |
+| C7 | Entries are explicit propositions with sources | **Best hook for epistemic visibility** |
 
-### 8.4 Riskiest assumption, decisive test, kill criterion
-- **Assumption:** a small clerk with a library matches a large dense model *and* actually relies on the library
-  rather than quietly memorizing.
-- **Decisive tests:** T-B1 (reliance under edits) and T-B2 (closed-book leakage, with and without edit training).
-- **Kill:** high closed-book leakage, **or** reliance-under-edit < 90% despite edit training.
+**Kill:** citations aren't causal (reliance < 90% under plausible edits), **or** the edit-detection probe is well
+above chance even after training against it.
 
 ---
 
-## 9. Design C — Planner and Voice (content separated from wording)
+## 9. Design C v2 — Content and style (inside A; a separate voice only as fallback)
 
-**Principle:** *decide what to say in the open; let the wording be free only within a bounded, audited channel.*
-Fluency is the most capacity-hungry and least decision-relevant part of language, so give it its own component and
-make sure it can't change the content.
+**What changed and why.**
+- The performance critic showed a separate planner→voice pipeline can at best *tie* a dense model. It also
+  degenerates on content-dense text (code, math, names), where the plan becomes the token stream.
+- The observability critic showed a dense voice and its parser can **collude** on a cipher, and a dense voice can
+  inject facts from its own weights.
 
-### 9.1 Anatomy
-- **Planner** (Design A): for each upcoming sentence it emits a **plan**, a sparse set of *content-typed* features
-  from A's dictionary with values (BB16), e.g. {predicate: capital_of, arg: France, answer: Paris, stance: assert}.
-  This needs no hand-written schema: "content" vs "style" is a type on dictionary features, verified by the
-  non-interference test below.
-- **Voice:** renders `(plan_i, style code_i ≤ b bits, previously emitted text)` into words. **The voice sees nothing
-  else.** It has no access to the hidden context. That is an information-flow rule (BB15): any content in the text
-  must have come through the plan or the already-public text.
-  - *Strict* variant: the voice is also Design A.
-  - *Pragmatic* variant: the voice is a dense model, made safe by the checks below rather than by its internals.
-- **Round-trip parser:** an A-style encoder maps the emitted sentence back to content features. Check
-  `parse(text) == plan` on content-typed features. This is translation validation: check each instance instead of
-  proving the voice correct.
-- **Non-interference test:** hold the plan and style code fixed and vary the hidden context. The output distribution
-  must not change. Also train adversarial probes to recover non-plan content from the text (a steganography
-  check), and estimate how many bits the style code actually carries.
+### Design
+- **Inside A (primary):** dictionary features are typed *content* or *style*.
+  - **Non-interference test:** hold the content-typed features fixed, vary the style features and any hidden
+    context, and check that the content of the output (as parsed by an independent parser) doesn't change.
+  - **Bound:** the information reaching the text beyond content features is at most style bits plus choice entropy.
+    It is estimated, with paraphrase-equivalent plans for the choice entropy.
+  - This gives "what it is going to say" visibility at **no architectural tax**.
+- **Separate dense voice (fallback only).** Used only if fluency turns out to be A's dominant tax. Requirements:
+  - an **independent** parser, with different architecture and data, anchored on human-written text;
+  - **two-directional** equality, parse(text) == plan, with the *unparseable residue* rate as a first-class
+    metric;
+  - a paraphrase-invariance test: an independent paraphraser rewrites the text and the plan must still parse;
+  - plan values checked at b bits;
+  - canonical plan ordering.
+  - *Principle:* a checker may be opaque if it is **independent and calibrated**, like test equipment. The system
+    being checked is what must be observable.
 
-### 9.2 How C meets each criterion
-
-| Criterion | Mechanism | Strength |
-|---|---|---|
-| C1 | A pragmatic dense voice gives dense-level fluency, and the planner is small. The tax depends on how expressive plans are. | **Open.** The main risk is open-domain nuance that resists a feature-set plan. |
-| C2 | The plan determines content causally: round-trip check, plus plan-edit tests (edit the plan and the text changes accordingly). | **Measured** per instance. |
-| C3 | Content can flow only through the plan or the ≤ b-bit style code, enforced by the voice's restricted inputs and *tested* by non-interference and steganography probes. | **By construction for flow; measured for leakage.** |
-| C4 | A plan is a short set of named content features. The style code is explicitly "how, not what". | **Strong.** |
-| C5 | The round-trip parse is a cheap per-sentence check. The planner replays with A's executor. | **By construction.** |
-| C6 | Edit the plan and the text changes predictably. | **Measured.** |
-| C7 | The plan is an explicit state that an independent evaluator could check, which is Graepel's "System 2" hook. | **Hook.** |
-
-### 9.3 Riskiest assumption, decisive test, kill criterion
-- **Assumption:** a sentence's content can be captured as a sparse set of typed features, at small tax and with
-  round-trip fidelity.
-- **Decisive test:** T-C1.
-- **Kill:** round-trip error > 5%, **or** planner tax no lower than token-level Design A's tax (separating the voice
-  bought nothing).
+**Kill (fallback only):** round-trip error > 5%, **or** the oracle-plan test (D4) shows planner + voice NLL above
+the token-level model.
 
 ---
 
-## 10. The composite: Layered Glass Box, plus Design D (parked)
+## 10. The composite (v2): one model, three views
 
-A, B and C are not rivals. They are layers:
-- **A is the substrate** for the clerk, the planner and the parser.
-- **B supplies knowledge.**
-- **C supplies fluency without content leakage.**
+The v1 composite stacked three separately taxed stages, so taxes compounded. **v2 is one Design-A model**:
+- **B** is its unit memory extended outward with provenance;
+- **C** is a typing discipline on its dictionary plus a non-interference test.
 
-A full trace of one answer reads like this:
+A trace of one answer:
 
-> **"Paris"** ← voice realized plan item {capital_of(France) = Paris}. Round-trip ✓, style code used 3 of 16 bits.
-> ← planner unit #88 412 "answer-capital-question" fired. Gate conditions {question-about-capital ✓,
-> entity=France ✓}. Its score is 84% from 4 named features, and the other 16% is listed.
-> ← feature `answer=Paris` came from library entry #4 411 "Paris is the capital of France" (source: encyclopedia,
-> 2025-03), retrieval score decomposed. Under an edit to "Lyon", the output becomes "Lyon" ✓.
+> **"Paris"**: decision margin 4.1 nats over "Lyon".
+> - 2 kbits of description reproduce 93% of that margin (gross). Cancellation ratio 1.3; tail 7% across 61 terms.
+> - The main path: unit #88 412, whose short description is "answer-capital-question". It fired because its exact
+>   selection score was carried 84% by the features {question-about-capital, entity=France}, each described to
+>   grounding.
+> - That unit read `answer=Paris` from library entry #4 411 (source: encyclopedia, 2025-03).
+> - Edit that entry to "Lyon" and the output follows, as predicted by the interpreter ✓.
+> - Content-typed features fixed ⇒ the answer is invariant to style ✓.
 
-**Design D — "Open Notebook" (parked, C7).** An explicit belief state: propositions with credences and evidence
-links, revised step by step, with an independent evaluator (Graepel's AlphaGo analogy). Library entries, named
-features and plans are its natural ingredients. Nothing in A/B/C blocks it.
+**Design D, "Open Notebook"** (parked, C7): an explicit belief state with an independent evaluator. Content-typed
+features and provenance-tagged entries are its ingredients.
 
 ---
 
-## 11. Test plan (ordered; 4 CPU cores, so these are trend tests at small scale)
+## 11. Test plan (v2)
 
-Each test states a prediction **before** running, so it can be wrong.
+**Ordering principle.** Test the riskiest assumption first and cheapest first. Use **one trained dense model to
+answer several questions**. Add constraints **one at a time** so every tax can be attributed.
 
-| Order | Test | Question | Setup | Prediction | Kill / redirect if |
+**Compute reality.**
+- 4 CPU cores. HuggingFace is blocked by the egress policy; GitHub raw and PyPI are reachable.
+- The corpus will be assembled from reachable sources: public-domain books mirrored on GitHub, CPython stdlib
+  source as a code slice, and tiny-shakespeare for a sanity check against published baselines. Target 20–50M
+  tokens, byte-level or small-BPE.
+- Small-scale numbers can mislead in either direction:
+  - tiny corpora need few features, so N-sweeps go flat for the wrong reason;
+  - wide sparse pools are data-starved when small.
+- So: match ratios (k/d, N/d) to the target regime, run ≥ 3 seeds, fit dense IsoFLOP curves, and never read a
+  single-scale result as a scaling claim. Real scaling trends (≥ 3 sizes) will need a GPU. That is flagged for
+  later, not assumed.
+
+| # | Test | Question | Setup | Prediction (written before running) | Redirect / kill |
 |---|---|---|---|---|---|
-| 1 | **T-A3 typed operators** | Does an equivariant shift operator fix the arithmetic gap (L4/L5)? | rulenet_g + a cyclic value code with a shift(+n) operator (n chosen discretely, logged). Control: dense with the same value code. Current testbed. | Held-out succ/pred/pls2 accuracy goes from ~0 to ≥ 0.9. iid NLL closes ≥ half the gap to dense. The dense control stays well below. | Held-out arithmetic < 0.5: operator selection is failing; inspect before moving on. |
-| 2 | **T-A0 bus-lite on real text** | A's riskiest assumption, cheaply: what does an explicit k-sparse named residual cost on *real* language? | Small dense transformer vs the same with an explicit top-k-over-dictionary residual at every layer (tied dictionary, ids carried). Tiny real corpus (TinyStories if egress allows, else an offline corpus). Sweep k and N. | Tax falls as N grows at fixed k. At k≈32–64 and N≈16k the tax is ≤ 15%. | Tax flat or rising in N: rethink A before building more of it. |
-| 3 | **T-A2 coincidence gating** | Does AND-gating remove cross-mode contamination at no cost (L6)? | rulenet_g, weighted-sum vs product gate. | Cross-mode firing ~0, fewer rules per step, iid NLL equal or better. | NLL worse by > 0.05 with no legibility gain. |
-| 4 | **T-A1 capacity scaling** | Can named wide-sparse capacity hold *idiosyncratic* knowledge as efficiently as dense superposition? | Testbed v2 = current rules + K random facts (K ∈ {256, 1k, 4k}). Glass box N_u ∈ {1k…64k} at fixed k vs dense at matched params and FLOPs. | Tax falls with N_u. Within 10% of dense on fact recall at matched params. | Tax flat in N_u. |
-| 5 | **T-B1 reliance under edits** | Does the clerk actually use the library? | Testbed v2 with facts moved into a library. Train with and without counterfactual edits. | With edit training, reliance ≥ 90%. | < 90%. |
-| 6 | **T-B2 leakage audit** | How much knowledge hides in the clerk? | Same, with the library removed. | Leakage ≤ 10% with edit training, much higher without. | Leakage high even with edit training. |
-| 7 | **T-C1 planner/voice** | Does content separate from style at small tax? | Testbed v3: sentences generated from frames plus ~8 bits of style variation. | Round-trip error ≤ 5%. Style code uses ≈ 8 bits. Non-interference holds. | Round-trip > 5%, or no tax gain over token-level A. |
-| 8 | **T-A4 glass box on real text** | Full Design A vs dense at matched FLOPs: the honest C1 number at small scale, plus C2–C5 metrics | Real corpus, ~1–5M params | Tax ≤ 10–15%, terms-to-90% ≤ 20, completeness gap ≤ 0.01 | Tax > the gap between dense and dense-at-half-compute (worse than halving the model). |
+| **D1** | **SAE / transcoder splice** | Upper bound on the bus tax; L(N,k) floor | Train a small dense LM (d≈256, 4 layers) on the corpus. Fit TopK/JumpReLU SAEs at every layer on a grid of k/d ∈ {1/32, 1/16, 1/8, 1/4} and N/d ∈ {16, 64, 256}. Splice **all layers at once**. Report the tax as compute-equivalent and fit L(N,k). | Tax ≤ 30% at k/d = 1/4 post-hoc, falling with N. The floor is set by k. | Post-hoc tax > 2× dense-at-half-compute even at k/d = 1/4 → the bus needs a rethink before T-A0. |
+| **D2** | **Value quantization** | Precision tax | Same model and SAEs, feature values at b ∈ {4, 6, 8}: post-hoc, then brief QAT | b = 8 near-free; b = 4 costs | b = 8 costs > 5% → per-feature scale scheme rethink |
+| **D3** | **Top-k attention swap** | Attention tax | Same dense model, top-k attention post-hoc, k ∈ {4…64}, context ≥ 512 | Copy/induction heads fine at small k; averaging heads need entmax or large k | — (informs BB4 per-head policy) |
+| **D0** | **Control frontier** | The bar A must beat | D1's spliced model described in 𝓛 | Gives the dense + post-hoc frontier | — |
+| **T-A0** | **Ablation ladder, from scratch** | Where any tax lives | dense → +PEER pool (dense residual) → +top-k/entmax attention → +b-bit logged scalars → +explicit persistent bus → +DL pressure / clonal selection. 3 seeds, 2–3 sizes at fixed ratios. Frontier at every step. | The bus step costs less than in D1 (it's trained for it). Total ≤ 30% on CPU scale. The frontier improves sharply at the bus and DL steps. | Any single step > 15% → redesign that block. |
+| T-A2 | Gating toy | Does AND-gating beat a linear threshold with a margin? | m = 4 AND task plus the switching testbed; cross-firing, convergence | Log-domain product ≥ linear threshold on cross-firing at equal NLL | If not, drop BB3 |
+| T-A3 | Typed operators | Equivariance for generalization (L5) | Switching testbed, cyclic code + shift(+n). Control: dense with the same code. Also numeric tokens in the real corpus. | Held-out arithmetic ~0 → ≥ 0.9 | < 0.5 → inspect operator selection |
+| T-B | Library causality and hidden memory | Are citations causal; does memory hide? | Synthetic biographies (bioS-style, *verify*), plausible edits, edit-detection probe, relearning test | Reliance ≥ 90%, probe at chance | B kill criteria (§8) |
+| D4 | Oracle-plan test | Is the C fallback ever worth it? | Plan = content-lemma ids per sentence. Planner + voice vs token-level at equal FLOPs, on prose and a code slice. | Prose: tie or small loss; code: loses | Planner + voice > token-level + 10% → drop the C fallback |
+| Canary | Test the tests | Do the audits catch a smuggler? | Co-train an adversary to pass k bits through undeclared structure in a T-A0 model | Detected with power ≥ 0.9 | Undetected → fix the audit before trusting any C3 claim |
 
-**Why this order.**
-- T-A3 is cheap, attacks the one mechanism we *know* is broken, and its operator is reused by everything later.
-- T-A0 comes second because it tests the riskiest assumption in the whole program on real data before we invest in
-  the rest of A.
-- B and C tests need new testbeds, so they come after A's foundations.
-- T-A4 integrates everything.
-
-**Shared metrics for every test:** compute-equivalent tax; held-out and OOD accuracy; completeness gap; magnitude
-bits used; terms-to-90%; held-out legibility; replay exactness.
+**Shared metrics for every test:**
+- compute-equivalent tax (vs dense **and** MoE/PEER);
+- per-token-type loss (entity / function word / numeric / code);
+- long-context and induction probes;
+- dead-unit fraction and utilization entropy;
+- global and local frontier;
+- DSR gap;
+- quantization bits used;
+- cancellation ratio and tail mass;
+- replay exactness.
 
 ---
 
-## Refinement history
-- **v1 (2026-10-24).** First full draft from the requirement tree, the lessons L1–L10 and the parallels in
-  `THINKING-LOG.md`. Two independent critics (a performance skeptic and an observability skeptic) review it next.
-  v2 will record every change they force, and why.
+## 12. Refinement history
+
+### v1 → v2 (critique round 1, 2026-10-24)
+
+| # | Finding (critic) | Change | Why |
+|---|---|---|---|
+| 1 | "By construction" C2/C3/C5 are passed by any logged dense model, so they are vacuous (observability) | Split criteria into **hygiene** (H1–H3) and **discriminating** criteria judged by an independent interpreter in a fixed description language. New central metric: the **explanation frontier**, with a dense + post-hoc control that must fail. | The real content of observability is *short* faithful descriptions. That is measurable and can't be faked by logging. |
+| 2 | Global top-k with re-sparsification every layer starves depth-wise capacity; likely fatal (performance) | Per-feature thresholds, an additive persistent bus, raw k ≈ d/8–d/4, re-encoding loss as the decisive quantity, D1 as a cheap upper bound | Features shouldn't compete with unrelated features for slots. Legibility should come from the frontier, not from a tiny k. |
+| 3 | Noise injection doesn't bound information at inference; full-precision scalars elsewhere in the log are channels (observability) | **Hard quantization** of every logged scalar at inference (H3), QAT, fixed noise scales, canonical ordering | Turns a statistical hope into a cardinality bound. |
+| 4 | 4-bit has contrary evidence (E1) and activation outliers (performance) | Default b = 8, per-feature scales, D2 test | 8-bit activations are routinely near-lossless; per-feature scales avoid coordinate outliers. |
+| 5 | "Terms-to-90%" is gameable: many small canceling terms hide the margin (observability) | Margin-based, gross, depth-to-grounding local frontier, plus cancellation ratio and tail mass | The materiality fallacy: immaterial items can sum to a material one. |
+| 6 | Clonal selection Goodharts an F1-on-firing legibility score (observability); an LLM judge in the training loop is impractical (performance) | Fitness = fidelity per description bit from the automatic frontier evaluator. NL labels audited only by an independent simulator outside training. | Optimizing "short and faithful" *is* the goal, so Goodharting it is success. Keep human-language labels out of the loop so they can't be gamed. |
+| 7 | Product-key selection and declared conditions are two sources of truth that can disagree (observability); learning a few conditions out of 10^6 is unspecified structure learning (performance) | Selection score **defined** over named bus features, with no separate declared conditions. Shortness is pushed by L1/DL and measured by the frontier. | One source of truth, and no impossible structure-learning step. |
+| 8 | Product gates have vanishing gradients and cold-start problems (performance) | Log-domain gate, low-θ start, adopted only if it beats a linear threshold (T-A2) | Don't adopt a mechanism on analogy alone. |
+| 9 | Renaming-only OV is too restrictive; top-k starves averaging heads (performance) | General low-rank OV with re-encoding, per-head entmax/top-k, dropped mass logged, D3 | Keeps attention's expressiveness; renaming stays as the legible special case. |
+| 10 | Forbidding parametric memory is anti-loss and evadable by edit detection (both) | B becomes a provenance/editability extension of A's visible unit memory. Parametric knowledge allowed and measured. Plausible edits, edit-detection probe, relearning test, frozen versioned dictionary, optional blinded clerk. | In v2 knowledge in weights is no longer hidden, so there's no need to fight it. |
+| 11 | Planner/voice can at best tie dense and degenerates on content-dense text (performance); voice and parser can collude (observability) | C moves *inside* A as content/style typing + non-interference. A dense voice is only a fallback, with an independent parser, two-directional checks and paraphrase invariance. D4 decides whether the fallback is ever worth it. | No compounded tax. A checker can be opaque if it is independent and calibrated. |
+| 12 | Sampled decision checks leave holes; the checker's trust set is unstated (observability) | Exhaustive checks, hash-chained logs, written trust set | Exhaustive checking costs about one forward pass. Say what the guarantee does *not* cover. |
+| 13 | Compositional names explode with depth (observability) | DL counted to full grounding; aliases allowed but audited; name-length distribution reported | The cost of meaning must be paid somewhere visible. |
+| 14 | The baseline was too easy (dense only), "compute" was ill-defined, and small-scale results can mislead (performance) | MoE/PEER baseline, active FLOPs + params + wall-clock reported separately, ratio-matched sizes, ≥ 3 seeds, IsoFLOP curves, success/redirect/kill bands, ablation ladder | Make every tax attributable and every claim scale-aware. |
+| 15 | T-A3 says nothing about real-text C1 (performance) | Moved after the real-text diagnostics. Kept for generalization and numeric sub-domains. | Riskiest assumption first. |
+| 16 | No test of the tests (observability) | Canary adversary | An audit that has never caught a planted smuggler proves nothing. |
+
+**Findings not adopted, with reasons:**
+- **Use QuaRot-style rotations for outliers.** Rotating the residual mixes named features, which defeats the named
+  basis. Per-feature scales solve the same problem in our representation.
+- **Cap leakage at 10% (from v1).** Dropped, not strengthened. Visible parametric memory is acceptable, and only
+  *hidden* memory is a problem. The relearning test measures exactly that.
+
+## 13. What remains open after v2 (honest list)
+
+Every criterion now has a mechanism and a test that can fail. Two are **empirical questions no paper argument can
+settle**:
+1. **C1:** the from-scratch re-encoding (bus) tax at target ratios. D1 bounds it from above within days on CPU, and
+   T-A0 measures it.
+2. **C4:** whether the frontier really sits ≥ 10× better than dense + post-hoc, and whether ~80% of real-language
+   decisions fit in a page.
+
+Three are engineering or resource limits:
+3. wall-clock on current accelerators (custom kernels);
+4. scale transfer (needs a GPU for ≥ 3 sizes);
+5. C7 is parked.
