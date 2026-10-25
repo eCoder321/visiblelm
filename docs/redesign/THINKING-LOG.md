@@ -318,3 +318,24 @@ What remains is empirical and can't be settled on paper:
 
 Further paper rounds would mostly re-check edits. The next information has to come from experiments, starting
 with T-A0 stage 1.
+
+---
+
+## 2026-10-25 — First real data: what it says about the design
+
+The stage-1 results (`docs/tasks/TA0-stage1-report.md`) bear on the design in three ways.
+
+1. **The substrate bet looks right.** Wide sparse unit pools are both cheaper per FLOP *and* far easier to describe
+   than a dense MLP. Why: "few active units" directly shrinks the number of nodes an explanation must name, and
+   the published router already concentrates the work.
+2. **The "remove coupling by per-unit thresholds" move (round 3, item 1) was wrong as built.**
+   - The critic's concern was correct: competition is an edge-less coupling.
+   - The fix chosen, sigmoid gates, costs ~4× compute, and the cap still binds 30–40% of the time.
+   - Better first-principles answer: **don't remove a useful coupling; describe it.** The softmax normalizer becomes
+     an explicit node in 𝓛 (one shared scalar per retrieval head and position, with its inputs listed).
+3. **The pressure was a proxy, and it got Goodharted, exactly as the observability critic predicted.**
+   - Every scale-free "concentration" measure can be met by inflating opposing terms.
+   - First principles: the thing we want is *fidelity of a short description*. So the training signal should be that
+     fidelity itself: self-distillation against the model's own truncated replay.
+   - Optimizing the true target isn't Goodharting it. The residual risk is overfitting the *specific* truncation
+     rule, which the held-out language 𝓛′ in DESIGNS.md is there to catch.

@@ -291,6 +291,43 @@ Without the built-in check, every explanation number from the GPU would have bee
 L8 again: build the check into the instrument. All 18 stage-1 trainings were then launched in parallel, one L4
 each.
 
+
+## Step 18 — T-A0 stage 1 results: the substrate helps, the pressure was gamed
+
+18 trainings ran on Modal L4 GPUs (≈ 4.6 GPU-hours). Full detail: `docs/tasks/TA0-stage1-report.md`.
+
+**The good news: the specialists substrate is far more explainable, at no performance cost.** The published PEER
+design (many small units, few active) beat a normal transformer per FLOP: 1.32× dense-equivalent compute. Its
+explanations are also far more faithful:
+- at the most generous budget tested, a replay through its strongest connections reaches KL 0.04;
+- the normal model's best is 0.61, at twice the description length;
+- the normal model never reaches KL 0.3 anywhere on the grid.
+The comparison is still against raw neurons; a transcoder control is owed.
+
+**Two of our additions failed:**
+1. **Per-unit sigmoid thresholds**, meant to remove coupling between units, cost ~4× compute (+0.27 bpb). 59% of
+   units were never used, and the top-k cap still decided firing 30–40% of the time.
+2. **The explanation pressure did not shorten explanations.** Stronger pressure made them *worse*, and the pressured
+   models became fragile to any truncation.
+
+**Mechanism, found by testing two hypotheses on the trained checkpoints:**
+- *Refuted:* "information moved into spread-out attention". Attention spread was unchanged across pressure levels.
+- *Confirmed:* "the pressure was gamed by cancellation". The pressure asked whether 8 writers carry almost all of
+  each read's gross contribution. The model complied by making a few contributions huge and opposite in sign:
+  - on the output read, gross contribution grew 7× (16.5 → 112.6) while the net stayed ~20;
+  - the cancellation ratio rose from 1.2 to 5.4 (7.3 for the pressured dense model).
+  Large canceling terms make the computation fragile, so any small upstream error swamps the small difference that
+  carries the signal. The observability critic predicted exactly this in round 1.
+
+**Lesson.** A proxy for "explainable" that can be satisfied by rescaling will be gamed. The pressure has to be on the
+real target: does a short description reproduce the output?
+
+**Redirect (pre-registered decision rule: prediction 4 failed):** stage 1b, built from these pieces:
+- softmax PEER as the base, with its normalizer described explicitly;
+- truncation self-distillation: penalize KL between the model and its own top-m truncated replay;
+- a cancellation-penalty variant for comparison;
+- the fair dense + transcoders control.
+
 ---
 
 ## What this log is for

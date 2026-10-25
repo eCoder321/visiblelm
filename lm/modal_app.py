@@ -8,6 +8,7 @@ client reach Modal through this environment's HTTPS proxy. Credentials come from
     python lm/modal_app.py launch [job ...] [--smoke]  # spawn a GPU call per (job, seed); ids -> results/lm/modal_calls.json
     python lm/modal_app.py status                      # done / running / failed per call
     python lm/modal_app.py collect                     # copy result JSONs and logs from the volume into results/lm/
+    python lm/modal_app.py analyze [job ...]           # mechanism check (attention spread, unsampled pressure) -> results/lm/ta0s1_mechanism.json
 
 Calls run on Modal, independent of this machine. Checkpoints are committed to the volume at every save, so a
 preempted or retried call resumes where it stopped (run.py resumes from checkpoints; finished seeds are skipped).
@@ -59,6 +60,16 @@ def run_seed(job: str, seed: int, smoke: bool = False):
     t0 = time.time(); run.main(); vol.commit()
     return {'job': job, 'seed': seed, 'smoke': smoke, 'seconds': time.time() - t0}
 
+@app.function(gpu='L4', volumes={'/vol': vol}, timeout=3600, cpu=4, memory=32768)
+def analyze(jobs: list):
+    import shutil
+    vol.reload(); os.makedirs('/tmp/data/lm', exist_ok=True)
+    for f in ['val.bin', 'meta.json', 'train.bin', 'test.bin']: shutil.copy(f'/vol/data/lm/{f}', f'/tmp/data/lm/{f}')
+    sys.path.insert(0, '/root/lm')
+    import analyze_ta0
+    return {'mechanism': analyze_ta0.run('/vol/results/lm', '/tmp/data/lm', jobs),
+            'cancellation': analyze_ta0.run_cancel('/vol/results/lm', '/tmp/data/lm', jobs)}
+
 @app.function(volumes={'/vol': vol}, timeout=600)
 def collect_files():
     vol.reload(); out = {}
@@ -94,6 +105,10 @@ def main(argv):
             except Exception as e:
                 st = f'FAILED: {type(e).__name__}: {str(e)[:200]}'
             print(f"{c['job']:20s} seed {c['seed']} {'smoke ' if c['smoke'] else ''}{c['launched']}  {st}")
+    elif cmd == 'analyze':
+        res = _fn('analyze').remote(args or STAGE1)
+        p = os.path.join(ROOT, 'results', 'lm', 'ta0s1_mechanism.json'); json.dump(res, open(p, 'w'), indent=1)
+        print('wrote', p)
     elif cmd == 'collect':
         files = _fn('collect_files').remote(); dst = os.path.join(ROOT, 'results', 'lm')
         for rel, text in files.items():
