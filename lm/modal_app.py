@@ -23,6 +23,10 @@ STAGE1 = ['peer_sig_lam0', 'peer_sig_lam0.03', 'peer_sig_lam0.1', 'peer_sig_lam0
 vol = modal.Volume.from_name(VOLUME, create_if_missing=True)
 image = (modal.Image.debian_slim(python_version='3.13').apt_install('curl')
          .pip_install('jax[cuda12]==0.12.0.1', 'optax==0.2.8', 'numpy')
+         # XLA's Triton GEMM fusion miscompiled the frontier replay on an L4 (jit diverged from eager by up to 2.0 in
+         # logits at layer 1's attention output; exact again with Triton GEMMs off). Disabled for every GPU run,
+         # training included, so no result depends on it.
+         .env({'XLA_FLAGS': '--xla_gpu_enable_triton_gemm=false'})
          .add_local_dir(HERE, remote_path='/root/lm', ignore=['__pycache__']))
 app = modal.App(APP, image=image)
 

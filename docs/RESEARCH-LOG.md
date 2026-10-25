@@ -270,6 +270,27 @@ performance cost? The code to test it is in `lm/`, and the brief, with predictio
 
 A full-size step takes 5–10 s on these 4 cores, about 15 hours per run, so the 18 runs go to a GPU.
 
+
+## Step 17 — on GPUs: the self-check catches a compiler bug before any real run
+
+We moved to Modal GPUs (NVIDIA L4) and ran smoke tests first. Training matched CPU. The explanation evaluator's
+built-in check did not. At full budget, a replay of the specialists model must reproduce it exactly: KL ≈ 1e-8 on
+CPU, but **0.6 on the GPU**.
+
+**Diagnosis:**
+- Run step by step, the replay matched the model to 2e-6.
+- Compiled as one function, it diverged by up to 2.0 in output scores, starting at the second layer's attention
+  output.
+- Switching off one GPU compiler optimization, XLA's Triton GEMM fusion, made the compiled version match exactly
+  (difference 0.0).
+
+That optimization is now disabled for **every** GPU run, training included. With it off, the check passes on the
+GPU (KL ≈ 1e-8), and GPU explanation numbers agree with the CPU smoke runs.
+
+Without the built-in check, every explanation number from the GPU would have been silently wrong. This is lesson
+L8 again: build the check into the instrument. All 18 stage-1 trainings were then launched in parallel, one L4
+each.
+
 ---
 
 ## What this log is for

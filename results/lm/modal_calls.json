@@ -26,5 +26,173 @@
   "smoke": true,
   "id": "fc-01M5TJ7XEA81K71A6ZC20D2MCG",
   "launched": "2026-10-25 22:17:33"
+ },
+ {
+  "job": "peer_sig_lam0.1",
+  "seed": 0,
+  "smoke": true,
+  "id": "fc-01M5TJKQF93SNQHXDDZJS2TVRC",
+  "launched": "2026-10-25 22:24:00"
+ },
+ {
+  "job": "peer_sig_lam0.1",
+  "seed": 1,
+  "smoke": true,
+  "id": "fc-01M5TJKQJ9PA0QAKG1H62P875N",
+  "launched": "2026-10-25 22:24:00"
+ },
+ {
+  "job": "peer_softmax",
+  "seed": 0,
+  "smoke": true,
+  "id": "fc-01M5TJKQMXDSZ212Z8W438F76M",
+  "launched": "2026-10-25 22:24:00"
+ },
+ {
+  "job": "peer_softmax",
+  "seed": 1,
+  "smoke": true,
+  "id": "fc-01M5TJKQQVC0E167B01112QMJV",
+  "launched": "2026-10-25 22:24:00"
+ },
+ {
+  "job": "peer_sig_lam0.1",
+  "seed": 0,
+  "smoke": true,
+  "id": "fc-01M5TJNVDDJ7SMCQES22HEVD0Y",
+  "launched": "2026-10-25 22:25:10"
+ },
+ {
+  "job": "peer_sig_lam0.1",
+  "seed": 1,
+  "smoke": true,
+  "id": "fc-01M5TJNVG7H24TVN4BGRHXCHCA",
+  "launched": "2026-10-25 22:25:10"
+ },
+ {
+  "job": "peer_sig_lam0",
+  "seed": 0,
+  "smoke": false,
+  "id": "fc-01M5TJQTXYK7ZN0H8Q6EHPBRE6",
+  "launched": "2026-10-25 22:26:15"
+ },
+ {
+  "job": "peer_sig_lam0",
+  "seed": 1,
+  "smoke": false,
+  "id": "fc-01M5TJQV0Q1SDMQY55WHSMY507",
+  "launched": "2026-10-25 22:26:15"
+ },
+ {
+  "job": "peer_sig_lam0.03",
+  "seed": 0,
+  "smoke": false,
+  "id": "fc-01M5TJQV3FAFQPY65NK62RQYN0",
+  "launched": "2026-10-25 22:26:15"
+ },
+ {
+  "job": "peer_sig_lam0.03",
+  "seed": 1,
+  "smoke": false,
+  "id": "fc-01M5TJQV6CTFDCQEF24558ZGAC",
+  "launched": "2026-10-25 22:26:15"
+ },
+ {
+  "job": "peer_sig_lam0.1",
+  "seed": 0,
+  "smoke": false,
+  "id": "fc-01M5TJQV95JN8P5C3B1QNEJG1D",
+  "launched": "2026-10-25 22:26:15"
+ },
+ {
+  "job": "peer_sig_lam0.1",
+  "seed": 1,
+  "smoke": false,
+  "id": "fc-01M5TJQVBWM1EE9GGXKGZV5NEH",
+  "launched": "2026-10-25 22:26:15"
+ },
+ {
+  "job": "peer_sig_lam0.3",
+  "seed": 0,
+  "smoke": false,
+  "id": "fc-01M5TJQVEJ081TPQBVSNWV1B02",
+  "launched": "2026-10-25 22:26:15"
+ },
+ {
+  "job": "peer_sig_lam0.3",
+  "seed": 1,
+  "smoke": false,
+  "id": "fc-01M5TJQVHFTNB5EK7F0NK5SCNR",
+  "launched": "2026-10-25 22:26:15"
+ },
+ {
+  "job": "dense_d256",
+  "seed": 0,
+  "smoke": false,
+  "id": "fc-01M5TJQVMB8HGYVNWQDVPPH0WC",
+  "launched": "2026-10-25 22:26:15"
+ },
+ {
+  "job": "dense_d256",
+  "seed": 1,
+  "smoke": false,
+  "id": "fc-01M5TJQVQ8WF5HW3H9NZFHRWBX",
+  "launched": "2026-10-25 22:26:15"
+ },
+ {
+  "job": "dense_d192",
+  "seed": 0,
+  "smoke": false,
+  "id": "fc-01M5TJQVT18TCJWGQ45SFC2KZ8",
+  "launched": "2026-10-25 22:26:16"
+ },
+ {
+  "job": "dense_d192",
+  "seed": 1,
+  "smoke": false,
+  "id": "fc-01M5TJQVXEWXKJ0PNH7KRY1HSW",
+  "launched": "2026-10-25 22:26:16"
+ },
+ {
+  "job": "dense_d128",
+  "seed": 0,
+  "smoke": false,
+  "id": "fc-01M5TJQW05ZMR3EQ8RJM0P0X1W",
+  "launched": "2026-10-25 22:26:16"
+ },
+ {
+  "job": "dense_d128",
+  "seed": 1,
+  "smoke": false,
+  "id": "fc-01M5TJQW2X15Q1NCCQHS7KD588",
+  "launched": "2026-10-25 22:26:16"
+ },
+ {
+  "job": "peer_softmax",
+  "seed": 0,
+  "smoke": false,
+  "id": "fc-01M5TJQW5ZSP34K8F1VPY1Y2SM",
+  "launched": "2026-10-25 22:26:16"
+ },
+ {
+  "job": "peer_softmax",
+  "seed": 1,
+  "smoke": false,
+  "id": "fc-01M5TJQW95FSM7T4646QAHH2QT",
+  "launched": "2026-10-25 22:26:16"
+ },
+ {
+  "job": "dense_d256_lam0.1",
+  "seed": 0,
+  "smoke": false,
+  "id": "fc-01M5TJQWC10JF31QFKKZDJSZYR",
+  "launched": "2026-10-25 22:26:16"
+ },
+ {
+  "job": "dense_d256_lam0.1",
+  "seed": 1,
+  "smoke": false,
+  "id": "fc-01M5TJQWF0CTPEDP1BYSH3SGXT",
+  "launched": "2026-10-25 22:26:16"
  }
 ]
