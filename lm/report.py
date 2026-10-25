@@ -16,7 +16,7 @@ import numpy as np
 
 def load(out, prefix):
     jobs = {}
-    for f in sorted(glob.glob(os.path.join(out, prefix + '*', 'seed*.json'))):
+    for f in sorted(glob.glob(os.path.join(out, '**', prefix + '*', 'seed*.json'), recursive=True)):
         r = json.load(open(f)); jobs.setdefault(r['name'], {})[r['seed']] = r
     return jobs
 

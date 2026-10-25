@@ -5,7 +5,7 @@
 Job spec: {"name": str, "seeds": [..], "cfg": {model + training keys, see DEFAULTS}}.
 Writes <out>/<name>/seed<k>.json (history, val loss by category, local frontier, stability) and checkpoints
 <out>/<name>/ckpt_seed<k>.pkl (params, optimizer state, balance bias, data-rng state) every ckpt_every steps.
-Data order depends only on the seed, so runs with the same seed see the same batches (paired comparisons).
+--seeds overrides the job's seed list (to run seeds in parallel). Data order depends only on the seed, so runs with the same seed see the same batches (paired comparisons).
 --smoke shrinks everything to a CPU-sized check of the whole pipeline.
 """
 import os, sys, json, time, math, pickle, argparse
@@ -142,7 +142,8 @@ def run_seed(job, seed, corpus, outdir, log):
     r['frontier'] = {}
     for c in ['prose', 'code']:
         Xf = corpus.eval_windows('val', c, cfg['frontier_windows'], cfg['frontier_T'], seed=1)
-        fr = frontier.evaluate(p, cfg, Xf, n_max=cfg['frontier_n_max'])
+        with jax.default_matmul_precision('highest'):  # GPUs default to TF32; the replay check needs full fp32
+            fr = frontier.evaluate(p, cfg, Xf, n_max=cfg['frontier_n_max'])
         r['frontier'][c] = fr
         log(f"  frontier[{c}] full-budget KL {fr['full_budget_kl']:.2e}  KL@bits " +
             ' '.join(f"{k}:{v:.3f}" for k, v in fr['kl_at_bits'].items() if v is not None))
@@ -151,13 +152,14 @@ def run_seed(job, seed, corpus, outdir, log):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('job'); ap.add_argument('--data', default='data/lm'); ap.add_argument('--out', default='results/lm')
-    ap.add_argument('--smoke', action='store_true')
+    ap.add_argument('--smoke', action='store_true'); ap.add_argument('--seeds', type=int, nargs='+')
     a = ap.parse_args()
     job = json.load(open(a.job))
+    if a.seeds is not None: job['seeds'] = a.seeds
     job['cfg'] = {**DEFAULTS, **job['cfg'], **(SMOKE if a.smoke else {})}
     if a.smoke: job['name'] += '_smoke'
     outdir = os.path.join(a.out, job['name']); os.makedirs(outdir, exist_ok=True)
-    logf = open(os.path.join(outdir, 'log.txt'), 'a')
+    logf = open(os.path.join(outdir, 'log_seed' + '_'.join(map(str, job.get('seeds', [0]))) + '.txt'), 'a')
     def log(s): print(s, flush=True); logf.write(s + '\n'); logf.flush()
     log(f"== {job['name']} on {jax.devices()} cfg {json.dumps(job['cfg'], sort_keys=True)}")
     corpus = Corpus(a.data)
