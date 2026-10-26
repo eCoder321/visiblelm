@@ -1,0 +1,1 @@
+{"name": "ta0s1b_press_l0.3", "seeds": [0], "cfg": {"mlp": "peer", "gate": "softmax", "press_kind": "replay", "lam": 0.3, "eval2": true}}

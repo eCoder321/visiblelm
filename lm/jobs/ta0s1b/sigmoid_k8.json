@@ -1,0 +1,1 @@
+{"name": "ta0s1b_sigmoid_k8", "seeds": [0, 1], "cfg": {"mlp": "peer", "gate": "sigmoid", "topk": 8, "eval2": true}}

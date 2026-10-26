@@ -64,12 +64,15 @@ def attention(b, x):
     return heads, A
 
 def peer_select(b, x, cfg, bias=None):
-    """Exact top-k per retrieval head for s = q1.k1[a] + q2.k2[b]. Returns unit ids, true scores (B,T,R,K), half-key
-    ids, and the routing read vectors' factors."""
-    n, dk, K = cfg['n_keys'], cfg['d_key'], cfg['topk']
-    q = jnp.einsum('btd,drk->btrk', x, b['wqk'])
-    s1 = jnp.einsum('btrk,nk->btrn', q[..., :dk // 2], b['keys1'])
-    s2 = jnp.einsum('btrk,nk->btrn', q[..., dk // 2:], b['keys2'])
+    """Exact top-k per retrieval head for s = q1.k1[a] + q2.k2[b]. Returns unit ids, true scores (B,T,R,K), and
+    half-key ids."""
+    return select_from_query(b, jnp.einsum('btd,drk->btrk', x, b['wqk']), cfg, bias)
+
+def select_from_query(b, q, cfg, bias=None, K=None):
+    """Product-key top-K for routing queries q (..., R, d_key); K defaults to cfg['topk']."""
+    n, dk = cfg['n_keys'], cfg['d_key']; K = K or cfg['topk']
+    s1 = jnp.einsum('...rk,nk->...rn', q[..., :dk // 2], b['keys1'])
+    s2 = jnp.einsum('...rk,nk->...rn', q[..., dk // 2:], b['keys2'])
     z1, z2 = (s1, s2) if bias is None else (s1 + jax.lax.stop_gradient(bias[0]), s2 + jax.lax.stop_gradient(bias[1]))
     v1, i1 = jax.lax.top_k(z1, K); v2, i2 = jax.lax.top_k(z2, K)
     cand = (v1[..., :, None] + v2[..., None, :]).reshape(v1.shape[:-1] + (K * K,))
@@ -78,15 +81,23 @@ def peer_select(b, x, cfg, bias=None):
     score = jnp.take_along_axis(s1, a, -1) + jnp.take_along_axis(s2, c, -1)
     return a * n + c, score, a, c
 
-def peer_gate(score, theta, cfg):
-    """score, theta: (..., K) for one retrieval head's selected units. Returns (gate, raw sigmoid or None).
+def peer_gate(score, theta, cfg, keep=None):
+    """score, theta: (..., K) for one retrieval head's selected units; keep: optional bool mask of the units a
+    description keeps (normalized gates renormalize over kept units only). Returns (gate, raw sigmoid or None).
     softmax         PEER's router (couples the selected units)
+    softmax_theta   softmax(s - theta): PEER's router plus the per-unit offset (probe for the sigmoid tax)
     sigmoid         sigma(s - theta): independent per-unit thresholds, unnormalized (gates can sum to K)
+    sigmoid_theta0  sigma(s): independent, no per-unit offset (probe for the sigmoid tax)
     sigmoid_scaled  sigma(s - theta) / K: still independent; output scale matches softmax at most
     sigmoid_norm    sigma(s - theta) normalized over the selected units (couples them again)"""
     kind = cfg.get('gate', 'sigmoid')
-    if kind == 'softmax': return jax.nn.softmax(score, -1), None
-    raw = jax.nn.sigmoid(score - theta)
+    if kind in ('softmax', 'softmax_theta'):
+        z = score - theta if kind == 'softmax_theta' else score
+        if keep is not None: z = jnp.where(keep, z, -1e30)
+        g = jax.nn.softmax(z, -1)
+        return (g if keep is None else g * keep), None
+    raw = jax.nn.sigmoid(score if kind == 'sigmoid_theta0' else score - theta)
+    if keep is not None: raw = raw * keep
     if kind == 'sigmoid_scaled': return raw / score.shape[-1], raw
     if kind == 'sigmoid_norm': return raw / (raw.sum(-1, keepdims=True) + 1e-9), raw
     return raw, raw
@@ -149,6 +160,7 @@ def forward(p, cfg, x, bias=None, press=None, record=False):
         h = h + heads.sum(2)
         s2 = gain(h); out, node = mlp(b, h * s2 * b['ln2'], cfg, None if bias is None else bias[l])
         if cfg['mlp'] == 'peer':
+            aux.setdefault('unit_usage', []).append(jnp.zeros(cfg['n_keys'] ** 2).at[node['unit'].ravel()].add(1.0))
             aux['usage'].append(jnp.stack([jnp.zeros(cfg['n_keys']).at[node['a'].ravel()].add(1.0),
                                            jnp.zeros(cfg['n_keys']).at[node['c'].ravel()].add(1.0)]))
         if press is not None:  # unit/neuron reads at the sampled positions, over that position's writers

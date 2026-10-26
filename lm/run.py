@@ -13,17 +13,25 @@ import numpy as np, jax, jax.numpy as jnp, optax
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from data import Corpus
 from model import init_params, init_balance, forward, n_params, flops_per_token
-import frontier
+import frontier, frontier2, pressure
 
 DEFAULTS = dict(d=256, layers=4, heads=4, mlp='peer', ff_mult=4, n_keys=128, d_key=128, r_heads=4, topk=16,
                 gate='sigmoid', balance_eta=1e-3,
                 T=256, bs=32, steps=8000, lr=2e-3, warmup=200, wd=0.1, clip=1.0, log_every=200, ckpt_every=1000,
                 lam=0.0, press_m=8, press_frac=1 / 16, press_slots=16, press_start=0.1, press_ramp=0.2,
                 press_w={'unit': 1.0, 'value': 1.0, 'logit': 1.0},
-                n_eval=256, frontier_windows=4, frontier_T=128, frontier_n_max=256)
+                n_eval=256, frontier_windows=4, frontier_T=128, frontier_n_max=256,
+                # faithful-replay pressure (press_kind='replay'): every press_every steps, on one random window
+                press_kind='share', press_every=4, press_sel='given', press_free_from=None, press_quant='noise',
+                press_m_choices=[4, 8, 16], press_n_choices=[8, 16, 32], press_ma_choices=[4, 8, 16],
+                hinge_w=0.1,  # the ranking hinge is an aid to selection robustness; capped at 4, so <= 0.4 next to the KL
+                # stage-1b evaluation (frontier2): strict/noise/6-bit replays, free and given selection
+                eval2=False, eval2_windows=8, eval2_T=128, eval2_boot=200, eval2_grid=None)
 SMOKE = dict(d=64, layers=2, heads=2, n_keys=16, d_key=32, r_heads=2, topk=4, T=64, bs=8, steps=30, log_every=10,
              ckpt_every=20, n_eval=8, frontier_windows=1, frontier_T=32, frontier_n_max=32, press_frac=1 / 4,
-             press_slots=4, press_start=0.0, press_ramp=0.1)
+             press_slots=4, press_start=0.0, press_ramp=0.1, press_m_choices=[2, 4], press_n_choices=[2, 4],
+             press_ma_choices=[2, 4], eval2_windows=2, eval2_T=32, eval2_boot=10,
+             eval2_grid={'m': [2, 8], 'n': [4, 8], 'ma': [2, 8]})
 
 def lam_at(cfg, i):
     s, r = cfg['press_start'] * cfg['steps'], max(cfg['press_ramp'] * cfg['steps'], 1)
@@ -49,16 +57,32 @@ def make_step(cfg, opt):
         if press is not None:
             parts = aux['press']
             pen = sum(w[k] * parts[k] for k in parts) / sum(w[k] for k in parts)
-        return ce + lam * pen, (ce, pen, parts, aux['usage'])
+        return ce + lam * pen, (ce, pen, parts, aux['usage'], aux.get('unit_usage', []))
 
-    @jax.jit
-    def step(p, os_, bias, xb, key, lam):
-        (_, (ce, pen, parts, usage)), g = jax.value_and_grad(loss_fn, has_aux=True)(p, xb, bias, key, lam)
-        upd, os_ = opt.update(g, os_, p); p = optax.apply_updates(p, upd)
-        if bias is not None:
-            bias = [bb - cfg['balance_eta'] * jnp.sign(u - u.mean(-1, keepdims=True)) for bb, u in zip(bias, usage)]
-        return p, os_, bias, ce, pen, parts
-    return step
+    def replay_loss_fn(p, xb, bias, key, lam, sel):
+        x, y = xb[:, :-1], xb[:, 1:]
+        logits, aux = forward(p, cfg, x, bias=bias)
+        ce = -jnp.take_along_axis(jax.nn.log_softmax(logits, -1), y[..., None], -1).mean()
+        k_w, k_r = jax.random.split(key)
+        xw = jax.lax.dynamic_slice_in_dim(x, jax.random.randint(k_w, (), 0, B), 1, 0)
+        kl, hinge = pressure.replay_loss(p, cfg, xw, bias, k_r, sel, cfg['press_quant'], cfg['hinge_w'])
+        pen = kl + cfg['hinge_w'] * hinge
+        return ce + lam * pen, (ce, pen, {'kl': kl, 'hinge': hinge}, aux['usage'], aux.get('unit_usage', []))
+
+    def make(fn):
+        @jax.jit
+        def step(p, os_, bias, xb, key, lam):
+            (_, (ce, pen, parts, usage, uu)), g = jax.value_and_grad(fn, has_aux=True)(p, xb, bias, key, lam)
+            upd, os_ = opt.update(g, os_, p); p = optax.apply_updates(p, upd)
+            if bias is not None:
+                bias = [bb - cfg['balance_eta'] * jnp.sign(u - u.mean(-1, keepdims=True)) for bb, u in zip(bias, usage)]
+            return p, os_, bias, ce, pen, parts, uu
+        return step
+    steps = {'plain': make(loss_fn)}
+    if cfg.get('press_kind') == 'replay' and cfg['lam'] > 0:
+        for sel in ('given', 'free'):
+            steps[sel] = make(lambda p, xb, bias, key, lam, sel=sel: replay_loss_fn(p, xb, bias, key, lam, sel))
+    return steps
 
 @jax.jit
 def _nll_rows(p_cfg_logits, y):
@@ -107,7 +131,9 @@ def run_seed(job, seed, corpus, outdir, log):
                                               cfg['lr'] * 0.1)
     opt = optax.chain(optax.clip_by_global_norm(cfg['clip']),
                       optax.adamw(sched, weight_decay=cfg['wd'], mask=lambda p: jax.tree.map(lambda a: a.ndim >= 2, p)))
-    step = make_step(cfg, opt)
+    steps = make_step(cfg, opt)
+    replay_on = cfg.get('press_kind') == 'replay' and cfg['lam'] > 0
+    free_from = None if cfg.get('press_free_from') is None else int(cfg['press_free_from'] * cfg['steps'])
     if os.path.exists(ckpt):
         st = pickle.load(open(ckpt, 'rb')); p, os_, bias, i0, hist = st['p'], st['os'], st['bias'], st['step'], st['hist']
         rng = np.random.default_rng(); rng.bit_generator.state = st['rng']; t_prev = st['seconds']
@@ -117,16 +143,26 @@ def run_seed(job, seed, corpus, outdir, log):
         i0, hist, rng, t_prev = 0, [], np.random.default_rng(1000 + seed), 0.0
     key = jax.random.PRNGKey(10_000 + seed)
     Xval = {c: corpus.eval_windows('val', c, cfg['n_eval'] // 2, T, seed=0) for c in ['prose', 'code']}
-    t0 = time.time()
+    t0 = time.time(); usage_win = None
     for i in range(i0, cfg['steps']):
         xb = jnp.asarray(corpus.batch(rng, cfg['bs'], T))
-        p, os_, bias, ce, pen, parts = step(p, os_, bias, xb, jax.random.fold_in(key, i), jnp.float32(lam_at(cfg, i)))
+        if replay_on and i % cfg['press_every'] == 0 and lam_at(cfg, i) > 0:
+            sel = 'free' if free_from is not None and i >= free_from else cfg['press_sel']
+            lam_eff = lam_at(cfg, i) * cfg['press_every']               # stated: pressure applied on 1/press_every steps
+            p, os_, bias, ce, pen, parts, uu = steps[sel](p, os_, bias, xb, jax.random.fold_in(key, i), jnp.float32(lam_eff))
+        else:
+            p, os_, bias, ce, pen, parts, uu = steps['plain'](p, os_, bias, xb, jax.random.fold_in(key, i),
+                                                              jnp.float32(0.0 if replay_on else lam_at(cfg, i)))
+        if uu: usage_win = [u for u in uu] if usage_win is None else [a + u for a, u in zip(usage_win, uu)]
         if i % cfg['log_every'] == 0 or i == cfg['steps'] - 1:
             ce = float(ce)
             if not math.isfinite(ce): raise RuntimeError(f'non-finite loss at step {i}')
             hv = eval_loss(p, cfg, np.concatenate([Xval['prose'][:16], Xval['code'][:16]]), bias)
+            dead = None if usage_win is None else float(np.mean([float((u == 0).mean()) for u in usage_win]))
+            usage_win = None
             hist.append({'step': i, 'train_nats': ce, 'val_bpb_quick': hv['bpb'], 'lam': lam_at(cfg, i),
-                         'press': float(pen), **{f'press_{k}': float(v) for k, v in parts.items()}})
+                         'press': float(pen), 'dead_frac_window': dead,
+                         **{f'press_{k}': float(v) for k, v in parts.items()}})
             log(f'  step {i:6d} train {ce:.4f} nats  val~ {hv["bpb"]:.4f} bpb  press {float(pen):.3f} '
                 f'lam {lam_at(cfg, i):.3g}  ({t_prev + time.time() - t0:.0f}s)')
         if (i + 1) % cfg['ckpt_every'] == 0 and i + 1 < cfg['steps']:
@@ -142,6 +178,18 @@ def run_seed(job, seed, corpus, outdir, log):
     r['val']['all'] = {k: (r['val']['prose'][k] + r['val']['code'][k]) / 2 for k in ['nats', 'bpb']}
     log(f"  val bpb: prose {r['val']['prose']['bpb']:.4f} code {r['val']['code']['bpb']:.4f}")
     r['stability'] = stability(p, cfg, np.concatenate([Xval['prose'][:32], Xval['code'][:32]]), bias)
+    if cfg.get('eval2'):
+        null = frontier2.NgramNull(np.asarray(corpus.data['train']))
+        r['frontier2'] = {}
+        for c in ['prose', 'code']:
+            Xf = corpus.eval_windows('val', c, cfg['eval2_windows'], cfg['eval2_T'], seed=1)
+            fr = frontier2.evaluate(p, cfg, Xf, c, null, bias=bias, grid=cfg.get('eval2_grid'), n_boot=cfg['eval2_boot'])
+            r['frontier2'][c] = fr
+            fs = fr['modes']['free_strict8']
+            log(f"  frontier2[{c}] exact KL given {fr['full_budget_kl_given_exact']:.1e} free {fr['full_budget_kl_free_exact']:.1e}"
+                f" | free-strict8 bits@p90<=0.1 {fs['bits_at_p90']['0.1']} p90@30k {fs['p90_at_bits']['30000']}"
+                f" p90@60k {fs['p90_at_bits']['60000']}")
+        return r
     r['frontier'] = {}
     for c in ['prose', 'code']:
         Xf = corpus.eval_windows('val', c, cfg['frontier_windows'], cfg['frontier_T'], seed=1)

@@ -1,0 +1,1 @@
+{"name": "ta0s1b_softmax_theta", "seeds": [0], "cfg": {"mlp": "peer", "gate": "softmax_theta", "eval2": true}}

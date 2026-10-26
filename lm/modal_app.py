@@ -55,7 +55,8 @@ def run_seed(job: str, seed: int, smoke: bool = False):
     def save_and_commit(path, obj):
         save(path, obj); vol.commit()
     run.save = save_and_commit
-    sys.argv = ['run.py', f'/root/lm/jobs/ta0s1/{job}.json', '--data', '/tmp/data/lm', '--out', f'/vol/results/lm/seed{seed}',
+    path = f'/root/lm/jobs/{job}.json' if '/' in job else f'/root/lm/jobs/ta0s1/{job}.json'
+    sys.argv = ['run.py', path, '--data', '/tmp/data/lm', '--out', f'/vol/results/lm/seed{seed}',
                 '--seeds', str(seed)] + (['--smoke'] if smoke else [])
     t0 = time.time(); run.main(); vol.commit()
     return {'job': job, 'seed': seed, 'smoke': smoke, 'seconds': time.time() - t0}
@@ -109,7 +110,8 @@ def main(argv):
         smoke = '--smoke' in args; jobs = [a for a in args if not a.startswith('--')] or STAGE1
         fn = _fn('run_seed')
         for j in jobs:
-            for s in json.load(open(os.path.join(HERE, 'jobs', 'ta0s1', j + '.json'))).get('seeds', [0]):
+            jp = os.path.join(HERE, 'jobs', j + '.json') if '/' in j else os.path.join(HERE, 'jobs', 'ta0s1', j + '.json')
+            for s in json.load(open(jp)).get('seeds', [0]):
                 fc = fn.spawn(j, s, smoke)
                 calls.append({'job': j, 'seed': s, 'smoke': smoke, 'id': fc.object_id, 'launched': time.strftime('%F %T')})
                 print('launched', j, 'seed', s, fc.object_id)

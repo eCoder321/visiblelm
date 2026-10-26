@@ -1,0 +1,1 @@
+{"name": "ta0s1b_sigmoid_theta0", "seeds": [0], "cfg": {"mlp": "peer", "gate": "sigmoid_theta0", "eval2": true}}
