@@ -354,6 +354,36 @@ The evaluator now catches the trick it previously missed.
 Both corrections are recorded in `docs/tasks/TA0-stage1-report.md` as a dated correction, not silently edited.
 Faithful-replay pressure v2 (`docs/redesign/FAITHFUL-REPLAY-PRESSURE.md`) integrates both critics' round-4 attacks.
 
+
+## Step 20 — why the tweak failed (still open), and a pressure that two critics sign off on
+
+**Why does the sigmoid-gate tweak cost performance?** The bias bug explained most of the original "4×". A real
+≈1.7× compute cost remains. Three explanations were tested with two ablation trainings and checkpoint measurements,
+and all were refuted:
+- *output scale*: scaling gates down made it worse (1.780 bpb);
+- *missing competition*: normalized sigmoid didn't recover softmax (1.711);
+- *flat or saturated gates*: the gate statistics don't separate softmax from the sigmoids.
+
+The cause is open. The performance critic's leading hypothesis is a "gauge" conflict between the per-unit offset θ
+and the selection score, with two cheap probes queued.
+
+**A clean finding on the way.** *Normalizing gates over the selected units is what makes explanations expensive.*
+Both normalized gates need 100–200k bits to reach KL ≤ 0.1; both independent gates need ~15k.
+
+**The new pressure.** Faithful-replay pressure: train the model so that its own short, *8-bit*, recomputed-from-
+kept-edges explanation reproduces its output. It went through three critique rounds (4–6). Each round closed ways
+the model could cheat:
+- precision anchors;
+- uncharged "given" side information;
+- scale-gameable hinges;
+- lenient fidelity scores;
+- backup circuits (necessity is measured, never trained);
+- overfitting the replay (variant replays);
+- ambiguous nulls (an eager arm, matched noise, 3 seeds, a pre-registered k-sweep comparison).
+
+**Both critics sign off on v3.1.** Stage 1b is ≈19 runs, ≈6.5 GPU-hours. Its decisive question: does the pressure
+beat simply using fewer active units, at equal performance?
+
 ---
 
 ## What this log is for

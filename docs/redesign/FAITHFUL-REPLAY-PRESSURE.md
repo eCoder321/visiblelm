@@ -12,8 +12,8 @@ Version history (details below):
 - v0: the stage-1 report's proposal;
 - v1: after my own red-team;
 - v2: after critique round 4 (both critics), plus two empirical checks run in response;
-- **v3: after critique round 5.** Both critics: no fatal holes, majors fixed below, "sound enough to run once
-  these are in".
+- v3: after critique round 5. Both critics: no fatal holes, majors fixed below.
+- **v3.1: after critique round 6. Both critics sign off** with the additions in the last section.
 
 ---
 
@@ -268,3 +268,51 @@ bias interacts with each gate. A dead-fraction-over-time log is the next cheap p
   is on softmax.
 - Plain sigmoid is plotted as an extra architectural point in the same plane. The question it answers: is
   "independent gates" itself a better trade than fewer softmax units?
+
+---
+
+## v3.1: critique round 6, final sign-off (2026-10-26)
+
+Both critics: **no fatal issues; sign-off conditional on these additions**, all of which are adopted.
+
+**Training noise matched to strict evaluation** (observability critic).
+- Evaluation's power-of-two step is 1–2× the training step, and deterministic rounding kills kept terms below ½ step.
+  Both mismatches are conservative: they can create a false *null*, never a false pass.
+- Fix: train with step = (continuous largest term) × r, r ~ log-uniform[1, 2).
+- Report KL under both the noise replay and the strict replay for every arm. A large gap flags a mismatch-driven
+  null.
+- Optionally, use deterministic rounding with STE on a minority of pressured steps.
+
+**Free selection is trained, not just tested** (both critics). The best-λ arm adds a **free-selection phase** (last
+25% of training) with the ranking hinge active. Selection agreement ≥ 0.95 and free-selection KL gate the pass for
+that arm only. For teacher-forced arms they are reported, not gating.
+
+**Fixed-budget comparison** (observability critic). Softmax may never reach KL p90 ≤ 0.1 within the grid, which
+would leave bits-to-threshold capped. So **KL p90 and EF at fixed budgets of 30k and 60k bits** are a primary
+comparison too, in the (bpb, bits) plane against the k-sweep.
+
+**A second architectural point** (performance critic).
+- Plain sigmoid may dominate the softmax k-sweep at equal bpb, and one point can't show that. So **sigmoid K=8 × 2
+  seeds** is added.
+- Pre-registered rule: if the sigmoid points lie below the softmax k-sweep fit, the pressure arms are also run on
+  sigmoid, with its ≈1.7× compute flagged against the 30% band and traded off explicitly.
+
+**The sigmoid tax: the performance critic's leading hypothesis.**
+- All sigmoid variants share a per-unit offset θ_u and a bounded gate. Selection ranks by s, but the gate acts on
+  s − θ_u: a gauge ambiguity between the shared half-key score and θ_u weakens the ranking signal.
+- Cheapest probes, one seed each:
+  - softmax(s − θ_u): if θ is the culprit, it degrades toward 1.68;
+  - sigmoid with θ frozen at 0: if θ is the culprit, it improves.
+- Free probes: the fraction of selected units with raw gate < 0.1; dead fraction over time.
+
+**Final stage 1b run list (≈19 runs, ≈6.5 GPU-hours on L4):**
+- **Softmax k-sweep:** K ∈ {4, 8, 12} × 2 seeds (K=16 exists).
+- **Sigmoid K=8** × 2 seeds.
+- **Pressure on softmax:**
+  - λ ∈ {0.1, 0.3, 1}, 1 seed each; the best two get a 2nd seed;
+  - the eager arm at the best λ;
+  - STE vs noise at the best λ;
+  - one free-selection arm at the best λ.
+- **Decisive comparison:** the best arm vs the nearest k-sweep point, 3rd seed each.
+- **θ probes:** softmax(s − θ), sigmoid with θ=0, 1 seed each.
+- Conditionally, the pressure arms on sigmoid.
