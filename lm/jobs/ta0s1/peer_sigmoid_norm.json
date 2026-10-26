@@ -1,0 +1,1 @@
+{"name": "ta0s1_peer_sigmoid_norm", "seeds": [0, 1], "cfg": {"mlp": "peer", "gate": "sigmoid_norm"}}

@@ -83,7 +83,8 @@ def stability(p, cfg, X, bs=16):
         rec = f(p, jnp.asarray(X[i:i + bs, :-1]))
         for l, r in enumerate(rec['layers']):
             np.add.at(use[l], np.asarray(r['unit']).ravel(), 1)
-            g = np.asarray(r['gate']).reshape(r['gate'].shape[:2] + (cfg['r_heads'], K))
+            if 'gate_raw' not in r: continue
+            g = np.asarray(r['gate_raw']).reshape(r['gate_raw'].shape[:2] + (cfg['r_heads'], K))
             sc = np.asarray(r['score']).reshape(g.shape)
             low = np.take_along_axis(g, sc.argmin(-1)[..., None], -1)[..., 0]
             bind[l].append((low > 0.5).mean())
@@ -91,7 +92,7 @@ def stability(p, cfg, X, bs=16):
     for l in range(cfg['layers']):
         q = use[l] / use[l].sum(); nz = q[q > 0]
         out.append({'dead_frac': float((use[l] == 0).mean()), 'usage_entropy': float(-(nz * np.log(nz)).sum() / np.log(N)),
-                    'cap_binding': float(np.mean(bind[l])) if cfg.get('gate', 'sigmoid') == 'sigmoid' else None})
+                    'cap_binding': float(np.mean(bind[l])) if bind[l] else None})
     return {'layers': out, 'dead_frac_mean': float(np.mean([o['dead_frac'] for o in out]))}
 
 def save(path, obj):

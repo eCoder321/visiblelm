@@ -79,8 +79,17 @@ def peer_select(b, x, cfg, bias=None):
     return a * n + c, score, a, c
 
 def peer_gate(score, theta, cfg):
-    if cfg.get('gate', 'sigmoid') == 'softmax': return jax.nn.softmax(score, -1)
-    return jax.nn.sigmoid(score - theta)
+    """score, theta: (..., K) for one retrieval head's selected units. Returns (gate, raw sigmoid or None).
+    softmax         PEER's router (couples the selected units)
+    sigmoid         sigma(s - theta): independent per-unit thresholds, unnormalized (gates can sum to K)
+    sigmoid_scaled  sigma(s - theta) / K: still independent; output scale matches softmax at most
+    sigmoid_norm    sigma(s - theta) normalized over the selected units (couples them again)"""
+    kind = cfg.get('gate', 'sigmoid')
+    if kind == 'softmax': return jax.nn.softmax(score, -1), None
+    raw = jax.nn.sigmoid(score - theta)
+    if kind == 'sigmoid_scaled': return raw / score.shape[-1], raw
+    if kind == 'sigmoid_norm': return raw / (raw.sum(-1, keepdims=True) + 1e-9), raw
+    return raw, raw
 
 def mlp(b, x, cfg, bias=None):
     """Returns (out (B,T,d), node dict). Nodes are the units (peer: R*K slots) or neurons (dense)."""
@@ -89,13 +98,15 @@ def mlp(b, x, cfg, bias=None):
         pre = x @ b['w_in'] + b['b_in']; act = jax.nn.gelu(pre)
         return act @ b['w_out'], {'pre': pre, 'coef': act}
     unit, score, a, c = peer_select(b, x, cfg, bias)
-    g = peer_gate(score, b['theta'][unit], cfg)
+    g, raw = peer_gate(score, b['theta'][unit], cfg)
     pre = jnp.einsum('btd,btrkd->btrk', x, b['u'][unit])
     coef = g * jax.nn.gelu(pre)
     out = jnp.einsum('btrk,btrkd->btd', coef, b['v'][unit])
     flat = lambda z: z.reshape(B, T, -1)
-    return out, {'unit': flat(unit), 'score': flat(score), 'gate': flat(g), 'pre': flat(pre), 'coef': flat(coef),
-                 'a': flat(a), 'c': flat(c)}
+    node = {'unit': flat(unit), 'score': flat(score), 'gate': flat(g), 'pre': flat(pre), 'coef': flat(coef),
+            'a': flat(a), 'c': flat(c)}
+    if raw is not None: node['gate_raw'] = flat(raw)
+    return out, node
 
 def routing_vectors(b, cfg, unit_slots, unit):
     """Read vector of each selected unit's routing score: s = x . r with r = Wq_r[:, :dk/2] k1[a] + Wq_r[:, dk/2:] k2[b].

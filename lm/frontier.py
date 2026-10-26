@@ -80,12 +80,16 @@ def make_replay(p, cfg):
             keep = L['rank_n'] < n
             if cfg['mlp'] == 'peer':
                 route, act = pre[..., 0], pre[..., 1]
-                if gate_kind == 'softmax':
-                    R, K = cfg['r_heads'], cfg['topk']; sh = route.shape
+                R, K = cfg['r_heads'], cfg['topk']; sh = route.shape
+                if gate_kind == 'softmax':                          # normalizer over the kept units of each head
                     z = jnp.where(keep, route, -1e30).reshape(sh[:-1] + (R, K))
                     g = jax.nn.softmax(z, -1).reshape(sh)
                 else:
                     g = jax.nn.sigmoid(route - L['theta'])
+                    if gate_kind == 'sigmoid_scaled': g = g / K
+                    if gate_kind == 'sigmoid_norm':
+                        gk = (g * keep).reshape(sh[:-1] + (R, K))
+                        g = (gk / (gk.sum(-1, keepdims=True) + 1e-9)).reshape(sh)
                 coef = g * jax.nn.gelu(act) * keep
             else:
                 coef = jax.nn.gelu(pre[..., 0] + L['bias']) * keep

@@ -194,5 +194,33 @@
   "smoke": false,
   "id": "fc-01M5TJQWF0CTPEDP1BYSH3SGXT",
   "launched": "2026-10-25 22:26:16"
+ },
+ {
+  "job": "peer_sigmoid_scaled",
+  "seed": 0,
+  "smoke": false,
+  "id": "fc-01M5TSH24B4Z5AR7RJ653NWXG8",
+  "launched": "2026-10-26 00:24:53"
+ },
+ {
+  "job": "peer_sigmoid_scaled",
+  "seed": 1,
+  "smoke": false,
+  "id": "fc-01M5TSH2886VGJ50H5HHZZ86T8",
+  "launched": "2026-10-26 00:24:53"
+ },
+ {
+  "job": "peer_sigmoid_norm",
+  "seed": 0,
+  "smoke": false,
+  "id": "fc-01M5TSH2B5Q7V99N2F91JW8GST",
+  "launched": "2026-10-26 00:24:53"
+ },
+ {
+  "job": "peer_sigmoid_norm",
+  "seed": 1,
+  "smoke": false,
+  "id": "fc-01M5TSH2E2NK26F933PN1TZRGR",
+  "launched": "2026-10-26 00:24:53"
  }
 ]

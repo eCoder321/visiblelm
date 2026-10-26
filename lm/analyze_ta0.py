@@ -95,3 +95,42 @@ def run_cancel(results_root, data_dir, jobs, seeds=(0, 1)):
             if os.path.exists(ck):
                 res[f'{j}/seed{s}'] = cancellation(ck, json.load(open(os.path.join(d, f'seed{s}.json')))['cfg'], X)
     return res
+
+def gate_diag(ckpt, cfg, X):
+    """Why did sigmoid gates cost ~4x compute? Per layer: gate saturation and sum per retrieval head, unit-pool
+    output size relative to the residual, and the gradient each parameter group gets (|grad| / |param|)."""
+    import optax
+    p = pickle.load(open(ckpt, 'rb'))['p']
+    x = jnp.asarray(X[:, :-1]); y = jnp.asarray(X[:, 1:])
+    R, K = cfg['r_heads'], cfg['topk']
+    with jax.default_matmul_precision('highest'):
+        _, aux = forward(p, cfg, x, record=True); rec = aux['record']
+        def ce(p): 
+            lg, _ = forward(p, cfg, x); return -jnp.take_along_axis(jax.nn.log_softmax(lg, -1), y[..., None], -1).mean()
+        g = jax.grad(ce)(p)
+    out, h = [], rec['emb']
+    for l, (b, r, gb) in enumerate(zip(p['blocks'], rec['layers'], g['blocks'])):
+        h = h + r['heads'].sum(2)
+        w = r['coef'][..., None] * b['v'][r['unit']]                       # (B,T,RK,d)
+        mlp_out = w.sum(2); ratio = jnp.linalg.norm(mlp_out, axis=-1) / jnp.linalg.norm(h, axis=-1)
+        gate = r['gate'].reshape(r['gate'].shape[:2] + (R, K))
+        d = {'gate_sum_per_head': float(gate.sum(-1).mean()), 'gate_max_mean': float(gate.max(-1).mean()),
+             'mlp_out_over_resid': float(jnp.median(ratio))}
+        if 'gate_raw' in r:
+            raw = r['gate_raw']; d.update(raw_gt_0p9=float((raw > 0.9).mean()), raw_lt_0p1=float((raw < 0.1).mean()))
+        rel = lambda k: float(jnp.linalg.norm(gb[k]) / (jnp.linalg.norm(b[k]) + 1e-12))
+        d['grad_rel'] = {k: rel(k) for k in ['keys1', 'keys2', 'wqk', 'u', 'v', 'theta'] if k in gb}
+        out.append(d); h = h + mlp_out
+    return out
+
+def run_gate_diag(results_root, data_dir, jobs, seeds=(0,)):
+    import json
+    corpus = Corpus(data_dir)
+    X = np.concatenate([corpus.eval_windows('val', c, 4, 128, seed=1) for c in ['prose', 'code']])
+    res = {}
+    for j in jobs:
+        for s in seeds:
+            d = os.path.join(results_root, f'seed{s}', f'ta0s1_{j}'); ck = os.path.join(d, f'ckpt_seed{s}.pkl')
+            if os.path.exists(ck):
+                res[f'{j}/seed{s}'] = gate_diag(ck, json.load(open(os.path.join(d, f'seed{s}.json')))['cfg'], X)
+    return res
