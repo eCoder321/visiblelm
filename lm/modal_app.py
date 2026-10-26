@@ -89,13 +89,30 @@ def rescore(jobs: list, qbits: int = 8):
     import analyze_ta0
     return analyze_ta0.rescore('/vol/results/lm', '/tmp/data/lm', jobs, qbits)
 
+def _compact(text):
+    """Stage-1b result JSONs carry every grid point of every replay mode (MBs). Large function results travel via a
+    blob host this environment's network policy blocks, so they are compacted on Modal: each mode keeps its Pareto set
+    (bits vs KL p90) and summary numbers; the full files stay on the volume."""
+    r = json.loads(text)
+    for fr in (r.get('frontier2') or {}).values():
+        for m in fr['modes'].values():
+            pts = sorted(m.pop('points', []), key=lambda q: q['bits']); par, best = [], float('inf')
+            for q in pts:
+                if q['kl_p90'] < best: par.append(q); best = q['kl_p90']
+            m['pareto_p90'] = par
+            ok = [q for q in pts if q['kl_p90'] <= 0.3 and 'sel_agree' in q]
+            m['sel_agree_at_p90_0.3'] = min(ok, key=lambda q: q['bits'])['sel_agree'] if ok else None
+    return json.dumps(r)
+
 @app.function(volumes={'/vol': vol}, timeout=600)
-def collect_files():
+def collect_files(prefix: str = ''):
     vol.reload(); out = {}
     for root, _, files in os.walk('/vol/results/lm'):
         for f in files:
-            if f.endswith(('.json', '.txt')):
-                p = os.path.join(root, f); out[os.path.relpath(p, '/vol/results/lm')] = open(p).read()
+            p = os.path.join(root, f); rel = os.path.relpath(p, '/vol/results/lm')
+            if prefix and prefix not in rel: continue
+            if f.endswith('.txt'): out[rel] = open(p).read()
+            elif f.endswith('.json'): out[rel] = _compact(open(p).read())
     return out
 
 def _fn(name): return modal.Function.from_name(APP, name)
@@ -140,7 +157,7 @@ def main(argv):
         p = os.path.join(ROOT, 'results', 'lm', f'ta0s1_rescore_q{qb}.json'); json.dump(res, open(p, 'w'), indent=1)
         print('wrote', p)
     elif cmd == 'collect':
-        files = _fn('collect_files').remote(); dst = os.path.join(ROOT, 'results', 'lm')
+        files = _fn('collect_files').remote(args[0] if args else ''); dst = os.path.join(ROOT, 'results', 'lm')
         for rel, text in files.items():
             p = os.path.join(dst, rel); os.makedirs(os.path.dirname(p), exist_ok=True); open(p, 'w').write(text)
         print(f'collected {len(files)} files into {dst}')

@@ -36,8 +36,11 @@ def metrics(seeds, mode):
         n = [r['frontier2'][c]['modes'].get('free_noise8', {}).get('p90_at_bits', {}).get('30000') for r in rs]
         s = [f['p90_at_bits']['30000'] for f in fr]
         out[f'noise_vs_strict@30k_{c}'] = None if None in n + s else float(np.mean(n) / max(np.mean(s), 1e-9))
-        pts = [q for q in fr[0]['points'] if q['kl_p90'] <= 0.3 and 'sel_agree' in q]
-        out[f'sel_agree_{c}'] = min(pts, key=lambda q: q['bits'])['sel_agree'] if pts else None
+        if 'points' in fr[0]:
+            pts = [q for q in fr[0]['points'] if q['kl_p90'] <= 0.3 and 'sel_agree' in q]
+            out[f'sel_agree_{c}'] = min(pts, key=lambda q: q['bits'])['sel_agree'] if pts else None
+        else:  # compacted on Modal (lm/modal_app.py _compact)
+            out[f'sel_agree_{c}'] = fr[0].get('sel_agree_at_p90_0.3')
     dead = [r['stability'].get('dead_frac_mean') for r in rs if r.get('stability')]
     out['dead_end'] = float(np.mean(dead)) if dead else None
     first = [next((h['dead_frac_window'] for h in r['history'] if h.get('dead_frac_window') is not None), None) for r in rs]
