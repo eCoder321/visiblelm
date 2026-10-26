@@ -134,3 +134,30 @@ def run_gate_diag(results_root, data_dir, jobs, seeds=(0,)):
             if os.path.exists(ck):
                 res[f'{j}/seed{s}'] = gate_diag(ck, json.load(open(os.path.join(d, f'seed{s}.json')))['cfg'], X)
     return res
+
+def rescore(results_root, data_dir, jobs, qbits=8, seeds=(0, 1)):
+    """Re-evaluate saved checkpoints: validation and train-window loss with and without the routing bias, stability
+    and the local frontier with the bias, exact and with a quantized replay (edge values on a qbits grid)."""
+    import json, frontier, run
+    corpus = Corpus(data_dir); res = {}
+    Xtr = corpus.batch(np.random.default_rng(123), 64, 256)
+    for j in jobs:
+        for s in seeds:
+            d = os.path.join(results_root, f'seed{s}', f'ta0s1_{j}'); ck = os.path.join(d, f'ckpt_seed{s}.pkl')
+            if not os.path.exists(ck): continue
+            cfg = json.load(open(os.path.join(d, f'seed{s}.json')))['cfg']
+            st = pickle.load(open(ck, 'rb')); p, bias = st['p'], st['bias']
+            Xval = {c: corpus.eval_windows('val', c, cfg['n_eval'] // 2, cfg['T'], seed=0) for c in ['prose', 'code']}
+            out = {'val_bias': {c: run.eval_loss(p, cfg, X, bias) for c, X in Xval.items()},
+                   'val_nobias': {c: run.eval_loss(p, cfg, X, None) for c, X in Xval.items()},
+                   'train_bias': run.eval_loss(p, cfg, Xtr, bias), 'train_nobias': run.eval_loss(p, cfg, Xtr, None),
+                   'stability_bias': run.stability(p, cfg, np.concatenate([Xval['prose'][:32], Xval['code'][:32]]), bias),
+                   'frontier': {}}
+            for c in ['prose', 'code']:
+                Xf = corpus.eval_windows('val', c, cfg['frontier_windows'], cfg['frontier_T'], seed=1)
+                for qb in [None, qbits]:
+                    with jax.default_matmul_precision('highest'):
+                        fr = frontier.evaluate(p, cfg, Xf, n_max=cfg['frontier_n_max'], qbits=qb, bias=bias)
+                    fr.pop('points'); out['frontier'][f'{c}_q{qb}'] = fr
+            res[f'{j}/seed{s}'] = out
+    return res

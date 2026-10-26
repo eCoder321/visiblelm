@@ -79,6 +79,15 @@ def gate_diag(jobs: list):
     import analyze_ta0
     return analyze_ta0.run_gate_diag('/vol/results/lm', '/tmp/data/lm', jobs)
 
+@app.function(gpu='L4', volumes={'/vol': vol}, timeout=3 * 3600, cpu=4, memory=32768)
+def rescore(jobs: list, qbits: int = 8):
+    import shutil
+    vol.reload(); os.makedirs('/tmp/data/lm', exist_ok=True)
+    for f in ['val.bin', 'meta.json', 'train.bin', 'test.bin']: shutil.copy(f'/vol/data/lm/{f}', f'/tmp/data/lm/{f}')
+    sys.path.insert(0, '/root/lm')
+    import analyze_ta0
+    return analyze_ta0.rescore('/vol/results/lm', '/tmp/data/lm', jobs, qbits)
+
 @app.function(volumes={'/vol': vol}, timeout=600)
 def collect_files():
     vol.reload(); out = {}
@@ -121,6 +130,12 @@ def main(argv):
     elif cmd == 'gate_diag':
         res = _fn('gate_diag').remote(args or ['peer_softmax', 'peer_sig_lam0'])
         p = os.path.join(ROOT, 'results', 'lm', 'ta0s1_gate_diag.json'); json.dump(res, open(p, 'w'), indent=1)
+        print('wrote', p)
+    elif cmd == 'rescore':
+        qb = int(args[0]); jobs = args[1:] or STAGE1
+        res = {}
+        for d in _fn('rescore').map([[j] for j in jobs], kwargs={'qbits': qb}): res.update(d)
+        p = os.path.join(ROOT, 'results', 'lm', f'ta0s1_rescore_q{qb}.json'); json.dump(res, open(p, 'w'), indent=1)
         print('wrote', p)
     elif cmd == 'collect':
         files = _fn('collect_files').remote(); dst = os.path.join(ROOT, 'results', 'lm')

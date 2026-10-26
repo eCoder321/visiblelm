@@ -65,22 +65,24 @@ def _nll_rows(p_cfg_logits, y):
     return -jnp.take_along_axis(jax.nn.log_softmax(p_cfg_logits, -1), y[..., None], -1)[..., 0]
 
 def eval_loss(p, cfg, X, bias=None, bs=16):
-    f = jax.jit(lambda p, x: forward(p, cfg, x)[0])
+    """bias: the load-balancing selection bias the model was trained with. It is part of the deployed routing, so
+    evaluation must use it (stage 1's first evaluation omitted it; see docs/tasks/TA0-stage1-report.md)."""
+    f = jax.jit(lambda p, x, bias: forward(p, cfg, x, bias=bias)[0])
     tot = []
     for i in range(0, len(X), bs):
-        xb = jnp.asarray(X[i:i + bs]); tot.append(np.asarray(_nll_rows(f(p, xb[:, :-1]), xb[:, 1:])))
+        xb = jnp.asarray(X[i:i + bs]); tot.append(np.asarray(_nll_rows(f(p, xb[:, :-1], bias), xb[:, 1:])))
     nats = float(np.concatenate(tot).mean())
     return {'nats': nats, 'bpb': nats / math.log(2)}
 
-def stability(p, cfg, X, bs=16):
+def stability(p, cfg, X, bias=None, bs=16):
     """PEER only: dead-unit fraction, normalized usage entropy, cap-binding rate (sigmoid gate: the lowest-ranked
     selected unit of a retrieval head still has gate > 0.5, so the top-k cap may be cutting units off)."""
     if cfg['mlp'] != 'peer': return {}
-    f = jax.jit(lambda p, x: forward(p, cfg, x, record=True)[1]['record'])
+    f = jax.jit(lambda p, x, bias: forward(p, cfg, x, bias=bias, record=True)[1]['record'])
     N = cfg['n_keys'] ** 2; K = cfg['topk']
     use = [np.zeros(N) for _ in range(cfg['layers'])]; bind = [[] for _ in range(cfg['layers'])]
     for i in range(0, len(X), bs):
-        rec = f(p, jnp.asarray(X[i:i + bs, :-1]))
+        rec = f(p, jnp.asarray(X[i:i + bs, :-1]), bias)
         for l, r in enumerate(rec['layers']):
             np.add.at(use[l], np.asarray(r['unit']).ravel(), 1)
             if 'gate_raw' not in r: continue
@@ -122,7 +124,7 @@ def run_seed(job, seed, corpus, outdir, log):
         if i % cfg['log_every'] == 0 or i == cfg['steps'] - 1:
             ce = float(ce)
             if not math.isfinite(ce): raise RuntimeError(f'non-finite loss at step {i}')
-            hv = eval_loss(p, cfg, np.concatenate([Xval['prose'][:16], Xval['code'][:16]]))
+            hv = eval_loss(p, cfg, np.concatenate([Xval['prose'][:16], Xval['code'][:16]]), bias)
             hist.append({'step': i, 'train_nats': ce, 'val_bpb_quick': hv['bpb'], 'lam': lam_at(cfg, i),
                          'press': float(pen), **{f'press_{k}': float(v) for k, v in parts.items()}})
             log(f'  step {i:6d} train {ce:.4f} nats  val~ {hv["bpb"]:.4f} bpb  press {float(pen):.3f} '
@@ -136,15 +138,15 @@ def run_seed(job, seed, corpus, outdir, log):
     r = {'name': job['name'], 'seed': seed, 'cfg': cfg, 'history': hist, 'train_seconds': secs,
          'n_params': n_params(p), 'flops_per_token': flops_per_token(cfg, T),
          'train_tokens': cfg['steps'] * cfg['bs'] * T}
-    r['val'] = {c: eval_loss(p, cfg, X) for c, X in Xval.items()}
+    r['val'] = {c: eval_loss(p, cfg, X, bias) for c, X in Xval.items()}
     r['val']['all'] = {k: (r['val']['prose'][k] + r['val']['code'][k]) / 2 for k in ['nats', 'bpb']}
     log(f"  val bpb: prose {r['val']['prose']['bpb']:.4f} code {r['val']['code']['bpb']:.4f}")
-    r['stability'] = stability(p, cfg, np.concatenate([Xval['prose'][:32], Xval['code'][:32]]))
+    r['stability'] = stability(p, cfg, np.concatenate([Xval['prose'][:32], Xval['code'][:32]]), bias)
     r['frontier'] = {}
     for c in ['prose', 'code']:
         Xf = corpus.eval_windows('val', c, cfg['frontier_windows'], cfg['frontier_T'], seed=1)
         with jax.default_matmul_precision('highest'):  # GPUs default to TF32; the replay check needs full fp32
-            fr = frontier.evaluate(p, cfg, Xf, n_max=cfg['frontier_n_max'])
+            fr = frontier.evaluate(p, cfg, Xf, n_max=cfg['frontier_n_max'], bias=bias)
         r['frontier'][c] = fr
         log(f"  frontier[{c}] full-budget KL {fr['full_budget_kl']:.2e}  KL@bits " +
             ' '.join(f"{k}:{v:.3f}" for k, v in fr['kl_at_bits'].items() if v is not None))

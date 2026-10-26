@@ -9,7 +9,8 @@ Norm gains and attention weights are logged values: the description states them,
 The description is executed from the input bytes: every kept read is recomputed from the *replayed* writers through
 the kept edges only; dropped edges and nodes contribute nothing. Fidelity is KL(model || replay) on the full next-byte
 distribution, per position. Description length counts, per position, every kept node id, edge pointer and b-bit value
-(unamortized). The frontier is fidelity against description length over a grid of budgets.
+(unamortized). The frontier is fidelity against description length over a grid of budgets. Unit selection uses the
+load-balancing bias the model was trained with (bias=...), since that is part of its deployed routing.
 
 Stage-1 simplifications (applied identically to every model, so comparisons stay fair):
   - edges are ranked by contribution magnitude in the full run, not by KL-greedy selection or patching (which can
@@ -25,10 +26,10 @@ from model import forward, routing_vectors
 def rank_desc(x, axis=-1):
     return jnp.argsort(jnp.argsort(-x, axis=axis), axis=axis)
 
-def setup(p, cfg, x, n_max=256):
+def setup(p, cfg, x, n_max=256, bias=None):
     """Full run on x (B,T) plus everything the replay needs: writer vectors, node read/write vectors, and the ranks
     that define which edges and nodes a budget keeps."""
-    logits, aux = forward(p, cfg, x, record=True)
+    logits, aux = forward(p, cfg, x, bias=bias, record=True)
     rec = aux['record']; B, T = x.shape
     S = {'logits': logits, 'emb': rec['emb'], 'layers': [], 'sf': rec['sf']}
     WV = [rec['emb'][:, :, None, :]]
@@ -62,21 +63,32 @@ def setup(p, cfg, x, n_max=256):
     S['n_nodes'] = int(S['layers'][0]['rank_n'].shape[-1])
     return S
 
-def make_replay(p, cfg):
+def quantize(c, axes, bits):
+    """Round contributions to a signed b-bit grid whose step is set by the largest kept term over `axes` (one read).
+    A description states each edge value at b bits relative to its read's largest term, so canceling giants cannot
+    carry a small net signal through it (critique round 4)."""
+    if bits is None: return c
+    step = jnp.abs(c).max(axis=axes, keepdims=True) / (2 ** (bits - 1)) + 1e-30
+    return jnp.round(c / step) * step
+
+def make_replay(p, cfg, qbits=None):
+    """qbits=None: edge values at the model's float precision. qbits=b: every kept edge value, kept attention weight
+    and logit contribution is rounded to b bits relative to its read's largest kept term."""
     gate_kind = cfg.get('gate', 'sigmoid')
+    q = lambda c, axes: quantize(c, axes, qbits)
     @jax.jit
     def replay(S, m, n, ma):
         WV = [S['emb'][:, :, None, :]]
         for b, L in zip(p['blocks'], S['layers']):
             Wc = jnp.concatenate(WV, 2) * b['ln1']
             Cv = jnp.einsum('btwd,dhe->bthwe', Wc, b['wv']) * L['s1'][:, :, None, None, None]
-            v = (Cv * (L['rank_v'] < m)[..., None]).sum(3)                     # (B,T,H,e)
-            A = L['A'] * (L['rank_a'] < ma)
+            v = q(Cv * (L['rank_v'] < m)[..., None], (3, 4)).sum(3)            # (B,T,H,e)
+            A = q(L['A'] * (L['rank_a'] < ma), (-1,))
             heads = jnp.einsum('bthe,hed->bthd', jnp.einsum('bhts,bshe->bthe', A, v), b['wo'])
             WV.append(heads)
             Wc = jnp.concatenate(WV, 2) * b['ln2']
             C = jnp.einsum('btwd,btnrd->btnrw', Wc, L['reads']) * L['s2'][:, :, None, None, None]
-            pre = (C * (L['rank_r'] < m)).sum(-1)                                # (B,T,N,reads)
+            pre = q(C * (L['rank_r'] < m), (-1,)).sum(-1)                         # (B,T,N,reads)
             keep = L['rank_n'] < n
             if cfg['mlp'] == 'peer':
                 route, act = pre[..., 0], pre[..., 1]
@@ -95,7 +107,9 @@ def make_replay(p, cfg):
                 coef = jax.nn.gelu(pre[..., 0] + L['bias']) * keep
             WV.append(coef[..., None] * L['wvec'])
         Wc = jnp.concatenate(WV, 2) * p['ln_f'] * (S['rank_o'] < m)[..., None]
-        return jnp.einsum('btwd,dv->btv', Wc, p['unemb']) * S['sf'][..., None]
+        if qbits is None: return jnp.einsum('btwd,dv->btv', Wc, p['unemb']) * S['sf'][..., None]
+        Co = jnp.einsum('btwd,dv->btwv', Wc, p['unemb']) * S['sf'][..., None, None]
+        return q(Co, (2, 3)).sum(2)
     return replay
 
 def description_bits(cfg, T, n_nodes, m, n, ma, b=8):
@@ -119,16 +133,19 @@ def kl_rows(lf, lr):
     pf = jax.nn.log_softmax(lf, -1); pr = jax.nn.log_softmax(lr, -1)
     return (jnp.exp(pf) * (pf - pr)).sum(-1)
 
-def evaluate(p, cfg, X, grid=None, n_max=256, bits=8, budgets_bits=(256, 512, 1024, 2048, 4096, 8192, 16384)):
+def evaluate(p, cfg, X, grid=None, n_max=256, bits=8, budgets_bits=(256, 512, 1024, 2048, 4096, 8192, 16384),
+             qbits=None, bias=None):
     """X: (B, T+1) eval windows. Returns the frontier: every grid point, the Pareto set, KL at bit budgets, and the
     full-budget correctness check."""
     x, y = jnp.asarray(X[:, :-1]), X[:, 1:]
-    S = setup(p, cfg, x, n_max); replay = make_replay(p, cfg)
+    S = setup(p, cfg, x, n_max, bias); exact = make_replay(p, cfg); replay = make_replay(p, cfg, qbits)
     T = x.shape[1]; N = S['n_nodes']; Wf = 1 + cfg['layers'] * (cfg['heads'] + N)
     nll = lambda lg: float(-jnp.take_along_axis(jax.nn.log_softmax(lg, -1), jnp.asarray(y)[..., None], -1).mean())
-    full = replay(S, jnp.int32(Wf), jnp.int32(N), jnp.int32(T))
+    full = exact(S, jnp.int32(Wf), jnp.int32(N), jnp.int32(T))
     out = {'n_nodes': N, 'nll_model': nll(S['logits']), 'full_budget_kl': float(kl_rows(S['logits'], full).mean()),
-           'points': []}
+           'qbits': qbits, 'points': []}
+    if qbits is not None:  # full budget, values on the declared grid: what precision alone costs
+        out['full_budget_kl_quantized'] = float(kl_rows(S['logits'], replay(S, jnp.int32(Wf), jnp.int32(N), jnp.int32(T))).mean())
     grid = grid or {'m': [1, 2, 4, 8, 16, 32], 'n': [2, 4, 8, 16, 32, 64, 128, 256], 'ma': [1, 2, 4, 8, 16]}
     for m in grid['m']:
         for n in grid['n']:
