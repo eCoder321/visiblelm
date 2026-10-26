@@ -222,5 +222,110 @@
   "smoke": false,
   "id": "fc-01M5TSH2E2NK26F933PN1TZRGR",
   "launched": "2026-10-26 00:24:53"
+ },
+ {
+  "job": "ta0s1b/softmax_k4",
+  "seed": 0,
+  "smoke": false,
+  "id": "fc-01M5V8MF02M5SDYHKFW4MARFQJ",
+  "launched": "2026-10-26 04:48:53"
+ },
+ {
+  "job": "ta0s1b/softmax_k4",
+  "seed": 1,
+  "smoke": false,
+  "id": "fc-01M5V8MF3CGQM0TQAYMCKFRF79",
+  "launched": "2026-10-26 04:48:53"
+ },
+ {
+  "job": "ta0s1b/softmax_k8",
+  "seed": 0,
+  "smoke": false,
+  "id": "fc-01M5V8MF62KKG3Z429VYYSF4HJ",
+  "launched": "2026-10-26 04:48:53"
+ },
+ {
+  "job": "ta0s1b/softmax_k8",
+  "seed": 1,
+  "smoke": false,
+  "id": "fc-01M5V8MF8W66F3VWTBKQ7SSRTC",
+  "launched": "2026-10-26 04:48:53"
+ },
+ {
+  "job": "ta0s1b/softmax_k12",
+  "seed": 0,
+  "smoke": false,
+  "id": "fc-01M5V8MFBK9QH3P73ZK3JBYEKH",
+  "launched": "2026-10-26 04:48:53"
+ },
+ {
+  "job": "ta0s1b/softmax_k12",
+  "seed": 1,
+  "smoke": false,
+  "id": "fc-01M5V8MFEC7M8MJMPSJ86B9Q4K",
+  "launched": "2026-10-26 04:48:53"
+ },
+ {
+  "job": "ta0s1b/softmax_k16",
+  "seed": 0,
+  "smoke": false,
+  "id": "fc-01M5V8MFH2KAE29BBY9F61N02R",
+  "launched": "2026-10-26 04:48:53"
+ },
+ {
+  "job": "ta0s1b/softmax_k16",
+  "seed": 1,
+  "smoke": false,
+  "id": "fc-01M5V8MFKM0TSK59K8SX28RNES",
+  "launched": "2026-10-26 04:48:53"
+ },
+ {
+  "job": "ta0s1b/sigmoid_k8",
+  "seed": 0,
+  "smoke": false,
+  "id": "fc-01M5V8MFPE2PW22GA8BCQCSC1Q",
+  "launched": "2026-10-26 04:48:54"
+ },
+ {
+  "job": "ta0s1b/sigmoid_k8",
+  "seed": 1,
+  "smoke": false,
+  "id": "fc-01M5V8MFSSTXKYQFMBG5Q6VE2C",
+  "launched": "2026-10-26 04:48:54"
+ },
+ {
+  "job": "ta0s1b/softmax_theta",
+  "seed": 0,
+  "smoke": false,
+  "id": "fc-01M5V8MFWH8TGDAFR883JC16TY",
+  "launched": "2026-10-26 04:48:54"
+ },
+ {
+  "job": "ta0s1b/sigmoid_theta0",
+  "seed": 0,
+  "smoke": false,
+  "id": "fc-01M5V8MFZ9ZYHQ9SWZ3D8S7DVN",
+  "launched": "2026-10-26 04:48:54"
+ },
+ {
+  "job": "ta0s1b/press_l0.1",
+  "seed": 0,
+  "smoke": false,
+  "id": "fc-01M5V8MG21HAG5JWYQEWTZS7JF",
+  "launched": "2026-10-26 04:48:54"
+ },
+ {
+  "job": "ta0s1b/press_l0.3",
+  "seed": 0,
+  "smoke": false,
+  "id": "fc-01M5V8MG4NKN5YNDVQRWA84TZ5",
+  "launched": "2026-10-26 04:48:54"
+ },
+ {
+  "job": "ta0s1b/press_l1",
+  "seed": 0,
+  "smoke": false,
+  "id": "fc-01M5V8MG7GTY5W9NXKNPAM49CC",
+  "launched": "2026-10-26 04:48:54"
  }
 ]
