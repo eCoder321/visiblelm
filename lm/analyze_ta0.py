@@ -100,13 +100,13 @@ def gate_diag(ckpt, cfg, X):
     """Why did sigmoid gates cost ~4x compute? Per layer: gate saturation and sum per retrieval head, unit-pool
     output size relative to the residual, and the gradient each parameter group gets (|grad| / |param|)."""
     import optax
-    p = pickle.load(open(ckpt, 'rb'))['p']
+    st = pickle.load(open(ckpt, 'rb')); p, bias = st['p'], st['bias']
     x = jnp.asarray(X[:, :-1]); y = jnp.asarray(X[:, 1:])
     R, K = cfg['r_heads'], cfg['topk']
     with jax.default_matmul_precision('highest'):
-        _, aux = forward(p, cfg, x, record=True); rec = aux['record']
-        def ce(p): 
-            lg, _ = forward(p, cfg, x); return -jnp.take_along_axis(jax.nn.log_softmax(lg, -1), y[..., None], -1).mean()
+        _, aux = forward(p, cfg, x, bias=bias, record=True); rec = aux['record']
+        def ce(p):
+            lg, _ = forward(p, cfg, x, bias=bias); return -jnp.take_along_axis(jax.nn.log_softmax(lg, -1), y[..., None], -1).mean()
         g = jax.grad(ce)(p)
     out, h = [], rec['emb']
     for l, (b, r, gb) in enumerate(zip(p['blocks'], rec['layers'], g['blocks'])):
@@ -114,7 +114,11 @@ def gate_diag(ckpt, cfg, X):
         w = r['coef'][..., None] * b['v'][r['unit']]                       # (B,T,RK,d)
         mlp_out = w.sum(2); ratio = jnp.linalg.norm(mlp_out, axis=-1) / jnp.linalg.norm(h, axis=-1)
         gate = r['gate'].reshape(r['gate'].shape[:2] + (R, K))
+        share = gate / (gate.sum(-1, keepdims=True) + 1e-9)          # each unit's share of its head's total gate
+        ent = -(share * jnp.log(share + 1e-12)).sum(-1) / jnp.log(K)    # 1 = all K units equal, 0 = one unit
         d = {'gate_sum_per_head': float(gate.sum(-1).mean()), 'gate_max_mean': float(gate.max(-1).mean()),
+             'top_share_mean': float(share.max(-1).mean()), 'share_entropy_norm': float(ent.mean()),
+             'coef_top4_share': float((jax.lax.top_k(jnp.abs(r['coef']), 4)[0].sum(-1) / (jnp.abs(r['coef']).sum(-1) + 1e-9)).mean()),
              'mlp_out_over_resid': float(jnp.median(ratio))}
         if 'gate_raw' in r:
             raw = r['gate_raw']; d.update(raw_gt_0p9=float((raw > 0.9).mean()), raw_lt_0p1=float((raw < 0.1).mean()))
