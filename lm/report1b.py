@@ -68,16 +68,19 @@ def main():
     print(f'replay mode: {a.mode}\n')
     print('| job | ' + ' | '.join(cols) + ' |'); print('|---' * (len(cols) + 1) + '|')
     for j in sorted(M): print(f'| {j} | ' + ' | '.join(fmt(M[j].get(c)) for c in cols) + ' |')
-    sweep = [M[j] for j in M if j.startswith('softmax_k')]
-    print('\nagainst the softmax k-sweep at equal bpb (above 1 = better than just choosing fewer units):')
+    print('\nagainst the softmax k-sweep at equal bpb, PAIRED BY SEED (seed-to-seed bpb differences of 0.04-0.06 make'
+          ' unpaired comparisons misleading); above 1 = better than just choosing fewer units:')
     for j in sorted(M):
         if j.startswith('softmax_k'): continue
-        row = []
-        for c in ['prose', 'code']:
-            for key in [f'bits01_{c}', f'p90@30000_{c}', f'p90@60000_{c}']:
-                sv = sweep_value(sweep, M[j]['bpb'], key); v = M[j].get(key)
-                row.append(f'{key}: ' + ('outside sweep range' if sv is None else ('-' if v is None else f'{sv / v:.2f}x')))
-        print(f'  {j} (bpb {M[j]["bpb"]:.4f}): ' + '; '.join(row))
+        for s, r in sorted(jobs[j].items()):
+            sweep = [metrics({s: jobs[k][s]}, a.mode) for k in jobs if k.startswith('softmax_k') and s in jobs[k]]
+            mj = metrics({s: r}, a.mode); row = []
+            for c in ['prose', 'code']:
+                for key in [f'bits01_{c}', f'p90@30000_{c}', f'p90@60000_{c}']:
+                    sv = sweep_value(sweep, mj['bpb'], key); v = mj.get(key)
+                    row.append(f'{key}: ' + ('outside sweep range' if sv is None else ('-' if v is None else f'{sv / v:.2f}x')))
+            print(f'  {j} seed{s} (bpb {mj["bpb"]:.4f}; sweep bpb ' +
+                  ', '.join(f'{x["bpb"]:.3f}' for x in sorted(sweep, key=lambda x: x["bpb"])) + '): ' + '; '.join(row))
     json.dump(M, open(os.path.join(a.out, 'ta0s1b_summary.json'), 'w'), indent=1)
 
 if __name__ == '__main__':

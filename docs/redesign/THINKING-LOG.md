@@ -339,3 +339,29 @@ The stage-1 results (`docs/tasks/TA0-stage1-report.md`) bear on the design in th
      fidelity itself: self-distillation against the model's own truncated replay.
    - Optimizing the true target isn't Goodharting it. The residual risk is overfitting the *specific* truncation
      rule, which the held-out language 𝓛′ in DESIGNS.md is there to catch.
+
+---
+
+## 2026-10-26 — What stage 1b says about the design
+
+- **Six critique rounds made the pressure hard to *cheat*, but not *efficient*.** Every gaming route we could think
+  of was closed, and the pressure did what it says: explanations got ~2× more faithful than its base. But the
+  pre-registered comparison against the cheapest alternative (fewer active units) shows the pressure is an expensive
+  way to buy sparsity the architecture can just be built with.
+  - The critique rounds were optimizing *validity* (no false pass).
+  - The k-sweep tested *value* (is this the best way?).
+  - Both were needed. The k-sweep only entered because the performance critic insisted on it in round 4.
+- **Where the explanation cost actually lives.** In the local description, bits are dominated by unit ids, their
+  reads and edges, and the normalizer that couples active units. So the most direct lever is the number of active
+  units. This is consistent with the normalization finding (gates normalized over 16 units need ~10× longer
+  explanations): both say "count of jointly active units" is the currency.
+- **Next idea, from the same principle: adaptive activation sparsity.** Description length is an *average over
+  positions*, and most bytes are easy. A model that activates 1–2 units on easy bytes and more on hard ones could sit
+  *below* the fixed-K curve, not just slide along it. Candidates:
+  - top-p routing (activate units until their softmax mass reaches p);
+  - a learned null or sink slot that lets a position abstain;
+  - a per-position unit budget with a small cost per active unit (an L0-style rate).
+
+  The bar is the same: beat the K-sweep at equal bpb, paired by seed.
+- **Process correction.** Report paired comparisons from the start. Slim the evaluator to the budget region where
+  the Pareto front lives, because evaluation cost more GPU time than training.

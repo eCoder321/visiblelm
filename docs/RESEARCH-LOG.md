@@ -384,6 +384,37 @@ the model could cheat:
 **Both critics sign off on v3.1.** Stage 1b is ≈19 runs, ≈6.5 GPU-hours. Its decisive question: does the pressure
 beat simply using fewer active units, at equal performance?
 
+
+## Step 21 — stage 1b: the critic-approved pressure loses to simply using fewer units
+
+The faithful-replay pressure, signed off by both critics, was tested on real text against a pre-registered bar. The
+bar: the same model with fewer active units (a K-sweep), compared at equal performance. 15 runs, 14.9 GPU-hours
+(more than twice the estimate; the new evaluator was the cost). Full detail: `docs/tasks/TA0-stage1b-report.md`.
+
+**Result: robust fail.**
+- Against its own base, the pressure does make explanations ≈2× more faithful.
+- But simply using 8 active units instead of 16 does better on *both* axes. Paired by seed, the pressure costs
+  +0.050 bpb, while K=8 costs +0.031 bpb and gives 2.7–2.8× lower KL at the same explanation budget, with
+  non-overlapping CIs.
+- The ambiguous-null guards all say this is real:
+  - the rounding surrogate matches strict evaluation;
+  - 10× stronger pressure saturates;
+  - selection agreement is ≈95%;
+  - grading the way it was trained still loses.
+
+**Also found:**
+- Activation sparsity is a strong, cheap lever: K 16 → 8 gives ≈5× more faithful explanations for +0.03 bpb.
+- Sigmoid gates are no better a trade than fewer softmax units. The stage-1 "13× cheaper" was against K=16 only.
+- The per-unit offset θ is ruled out as the cause of the sigmoid tax (the fourth refuted explanation; still open).
+- Seed effects (0.04–0.06 bpb) are large enough that unpaired comparisons mislead. My first read of the pressure's
+  tax (+0.022) was unpaired and wrong; paired it is +0.050.
+
+**Phase B was not run.** It existed to confirm a pass.
+
+**Lesson (first principles):** explanation length is dominated by how many units are active. An architectural
+constraint that sets that number directly beats a soft penalty that tries to induce it. The next design direction is
+*adaptive* activation sparsity: few units on easy tokens, more on hard ones.
+
 ---
 
 ## What this log is for
