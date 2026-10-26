@@ -1,5 +1,13 @@
 # T-A0 stage 1: results (2026-10-25)
 
+> **Correction (2026-10-26). Two numbers below are wrong; see "Correction" at the end.**
+> 1. Evaluation selected PEER units without the load-balancing bias they were trained with. With the bias:
+>    - the sigmoid-gate tax is **+0.11 bpb (≈1.7× compute)**, not +0.27 (≈4×);
+>    - sigmoid dead units are **11%**, not 59%.
+> 2. The frontier replay used float-precision edge values while charging 8 bits each. Re-scored with an 8-bit
+>    replay, the cancellation finding is *strengthened*.
+
+
 **Scale:** 18 trainings (9 jobs × 2 paired seeds) on Modal L4 GPUs, 5–25 minutes each, ≈ 4.6 GPU-hours in total.
 **Brief and pre-registered predictions:** `TA0-stage1.md`.
 **Raw results:**
@@ -109,3 +117,65 @@ recommended reporting the cancellation ratio for exactly this reason. Now it is 
   Σ|c|.
 - **Fair control:** dense + per-layer transcoders, described in the same way, with and without the same pressure.
 - **Always reported:** cancellation ratios, alongside the frontier.
+
+---
+
+## Correction (2026-10-26): evaluation-bias bug, and an 8-bit re-score
+
+**Found by:** the performance critic in critique round 4, reading the code. **Confirmed** in `lm/run.py` and
+`lm/frontier.py`. **Fixed** in commit `1a302b1`.
+
+**The bug.** PEER training selects units with a load-balancing bias (aux-loss-free, updated outside the gradient).
+`eval_loss`, `stability` and the frontier replay selected units *without* it, so they evaluated a different routing
+than the one trained. Every checkpoint was re-scored with the bias (`results/lm/ta0s1_rescore_q8_stage1.json`).
+
+**Corrected performance (val bpb, mean of 2 seeds):**
+
+| model | without bias (reported above) | with bias (correct) |
+|---|---|---|
+| peer_softmax | 1.576 | **1.570** |
+| peer_sig λ0 | 1.842 | **1.677** |
+| peer_sig λ0.03 | 1.854 | **1.681** |
+| peer_sig λ0.1 | 1.875 | **1.702** |
+| peer_sig λ0.3 | 1.887 | **1.719** |
+
+Dense models are unaffected (they have no routing bias).
+
+**What changes:**
+- **Prediction 1** is still refuted, but by +0.11 bpb (≈1.7× compute), not +0.27.
+- **Dead units:** sigmoid 11% and softmax 14% (with bias), so prediction 6 now holds. The earlier "59% dead" was the
+  bug.
+- **Train/val gap:** the sigmoid model's large gap disappears (train 1.70, val 1.68).
+- **The pressure tax** is essentially unchanged: +0.004, +0.025, +0.041 bpb.
+
+**8-bit re-score of the frontier.** Edge values, attention weights and logit contributions are rounded to 8 bits
+relative to each read's largest kept term, which is what the description length already charged for.
+
+Full-budget KL (nothing truncated, only rounded):
+
+| model | full-budget KL |
+|---|---|
+| honest models (softmax λ0, sigmoid λ0) | 0.001 |
+| sigmoid λ0.1 | 0.077 |
+| sigmoid λ0.3 | **0.289** |
+| dense λ0.1 | **2.039**, against 0.038 for dense λ0 |
+
+So the cancellers collapse exactly where the cancellation analysis predicted.
+
+Corrected bits per position to reach KL ≤ 0.1 (8-bit replay, with bias, prose/code):
+
+| model | bits |
+|---|---|
+| softmax λ0 | 204k / 204k |
+| sigmoid λ0 | 15.0k / 19.5k |
+| sigmoid λ0.03 | 12.3k / 11.5k |
+| sigmoid λ0.1 | not reached / 27.3k |
+| sigmoid λ0.3 | not reached |
+| dense | not reached |
+
+**What changes:**
+- **Prediction 4** is still refuted. The best in-band λ (0.03) gives 1.2× fewer bits on prose and 1.7× on code,
+  short of the ≥ 2× predicted, and stronger pressure is worse.
+- **The sigmoid-gate model is ~13× cheaper to explain than softmax PEER** at ≈1.7× compute. That is a real
+  trade-off. Whether it beats simply using fewer active units in softmax PEER (the k-sweep control) is the open
+  question.

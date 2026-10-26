@@ -328,6 +328,32 @@ real target: does a short description reproduce the output?
 - a cancellation-penalty variant for comparison;
 - the fair dense + transcoders control.
 
+
+## Step 19 — two corrections, and the evaluator gets teeth
+
+The user asked *why* the sigmoid tweak failed. The honest answer was "we don't know yet". Pursuing it turned up two
+errors in my own instrument.
+
+**1. Evaluation-bias bug (found by the performance critic reading the code).** PEER models are trained with a
+load-balancing bias in unit selection, and evaluation omitted it. Re-scored correctly:
+- the sigmoid tweak costs ≈1.7× compute, not ≈4× (val bpb 1.677, not 1.842);
+- the "59% dead units" was the bug (it is 11%).
+The sigmoid model's suspicious train/val gap disappears too. The pressure findings are unchanged.
+
+**2. The evaluator charged for 8-bit numbers but computed at float precision.** That is exactly what let
+cancellation hide (the observability critic's round-4 point). Re-scored with an 8-bit replay, at full budget:
+- honest models drift by 0.001;
+- the cancellers collapse: KL 0.29 for sigmoid λ0.3, 2.04 for dense λ0.1.
+The evaluator now catches the trick it previously missed.
+
+**Corrected picture of stage 1:**
+- The specialists substrate is far more explainable than dense.
+- Sigmoid gates trade ≈1.7× compute for ≈13× cheaper explanations.
+- Light pressure helps a little (1.2–1.7×, below the predicted 2×), and stronger pressure is gamed by cancellation.
+
+Both corrections are recorded in `docs/tasks/TA0-stage1-report.md` as a dated correction, not silently edited.
+Faithful-replay pressure v2 (`docs/redesign/FAITHFUL-REPLAY-PRESSURE.md`) integrates both critics' round-4 attacks.
+
 ---
 
 ## What this log is for
